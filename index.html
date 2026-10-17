@@ -293,7 +293,16 @@ document.addEventListener('touchend',function(){ if(!ptOn)return; var dy=ptPull;
 function importFromHash(){
   try{
     if(!location.hash || location.hash.indexOf('#d=')!==0) return false;
-    var b64=decodeURIComponent(location.hash.substring(3));
+    var rawHash = location.hash.substring(1);   // d=...&k=...
+    var parts = rawHash.split('&');
+    var dVal = '', kVal = '';
+    for (var hi = 0; hi < parts.length; hi++) {
+      var kv = parts[hi].split('=');
+      if (kv[0] === 'd') dVal = kv.slice(1).join('=');
+      if (kv[0] === 'k') kVal = kv.slice(1).join('=');
+    }
+    if (kVal) { lss('qbstd_key_v1', kVal); }
+    var b64=decodeURIComponent(dVal);
     var txt=decodeURIComponent(escape(atob(b64)));
     document.getElementById('importText').value=txt;
     doImport();
@@ -355,10 +364,39 @@ if('serviceWorker' in navigator){
 <script>
 /* ---------- 交易数据（来自 GitHub Actions 定时抓取的 data.json，同源无跨域） ---------- */
 var SITE = {};
+function b64ToBytes(s){
+  var bin = atob(s), out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function hexToBytes(h){
+  var out = new Uint8Array(h.length / 2);
+  for (var i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
+  return out;
+}
+async function decryptPayload(j){
+  var keyHex = ls('qbstd_key_v1', '');
+  if (!keyHex || String(keyHex).length !== 64) return null;
+  if (!(window.crypto && crypto.subtle)) return null;
+  try {
+    var key = await crypto.subtle.importKey('raw', hexToBytes(String(keyHex)), { name: 'AES-GCM' }, false, ['decrypt']);
+    var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(j.iv), tagLength: 128 }, key, b64ToBytes(j.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  } catch (e) { return null; }
+}
 function loadSite(){
   return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(j){ if(j && j.accounts){ SITE = j.accounts; patchRows(); } })
+    .then(function(j){
+      if (!j) return;
+      if (j.v === 1 && j.ct) {
+        return decryptPayload(j).then(function(plain){
+          if (plain && plain.accounts) { SITE = plain.accounts; patchRows(); }
+          else { SITE = {}; patchRows(); }
+        });
+      }
+      if (j.accounts) { SITE = j.accounts; patchRows(); }
+    })
     .catch(function(){});
 }
 function uinOf(li){

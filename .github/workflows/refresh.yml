@@ -23,6 +23,7 @@ jobs:
       - name: 抓取交易数据
         env:
           QBCKS: ${{ secrets.QBCKS }}
+          QBKEY: ${{ secrets.QBKEY }}
         run: node scripts/fetch-trades.mjs
 
       - name: 提交 data.json
