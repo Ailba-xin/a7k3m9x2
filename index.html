@@ -264,9 +264,23 @@ document.addEventListener('touchmove',function(e){
 },{passive:false});
 document.addEventListener('touchend',function(){ if(!ptOn)return; var dy=ptPull; ptOn=false; ptPull=0; if(dy>70){ ptBar(true,'正在刷新…'); refreshAll(); setTimeout(function(){ptBar(false);},1200); } else ptBar(false); },{passive:true});
 
+/* ---------- 一键导入链接（#d=<base64>）：手机点开链接自动导入 CK ---------- */
+function importFromHash(){
+  try{
+    if(!location.hash || location.hash.indexOf('#d=')!==0) return false;
+    var b64=decodeURIComponent(location.hash.substring(3));
+    var txt=decodeURIComponent(escape(atob(b64)));
+    document.getElementById('importText').value=txt;
+    doImport();
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+    return true;
+  }catch(e){ return false; }
+}
+
 /* ---------- 启动 ---------- */
 loadAll();
 paint();
+importFromHash();
 refreshAll();
 setInterval(function(){ if(!document.hidden) refreshAll(); }, 5*60*1000);
 document.addEventListener('visibilitychange',function(){ if(!document.hidden){ var t=document.getElementById('ts').textContent; if(t.indexOf('更新于')<0) refreshAll(); } });
