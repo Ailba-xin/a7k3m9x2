@@ -77,8 +77,10 @@ function computeRisk(wxAll, n) {
     for (let j = i; j < asc.length; j++) {
       if (asc[j].t - asc[i].t <= 7 * DAY) c++; else break;
     }
-    if (c > GREEN_MAX) { lastOver = asc[i].t; overFrom = asc[i].t; overTo = asc[i].t; overCount = c;
+    if (c > GREEN_MAX) {
+      overFrom = asc[i].t; overTo = asc[i].t; overCount = c;
       for (let j = i; j < asc.length; j++) { if (asc[j].t - asc[i].t <= 7 * DAY) overTo = asc[j].t; else break; }
+      lastOver = overTo;   // ★ 关键：必须记窗口**结束**那笔的时间，才能和"最新一笔微信"比较
     }
   }
   const latest = asc.length ? asc[asc.length - 1].t : 0;
