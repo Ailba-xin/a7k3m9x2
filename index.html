@@ -633,5 +633,49 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     } catch(e){}
   }, 8000);
 })();
+</script><div id="gate" style="position:fixed;inset:0;z-index:9999;background:#eef2f8;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:26px 22px;width:86%;max-width:360px;box-shadow:0 8px 30px rgba(16,28,44,.14);text-align:center">
+    <div style="font-size:40px;line-height:1">🔒</div>
+    <h2 style="margin:10px 0 4px;font-size:19px">需要授权才能使用</h2>
+    <p style="font-size:13px;color:#6b7686;margin:0 0 16px">向管理员索取授权码</p>
+    <input id="gateCode" type="text" autocomplete="off" placeholder="输入授权码" style="width:100%;padding:12px;border:1px solid #dfe4ec;border-radius:10px;font-size:16px;text-align:center;letter-spacing:1px">
+    <button onclick="checkGate()" style="width:100%;margin-top:12px;padding:13px;border:0;border-radius:10px;background:#1c589e;color:#fff;font-size:16px">进入</button>
+    <p id="gateErr" style="font-size:13px;color:#c0392b;margin:8px 0 0;min-height:18px"></p>
+  </div>
+</div>
+<script>
+(function(){
+  var GATE_HASH = '5a4219a7a668b7adbb92fbc3a4edf2fcc0c8941ba062c303bc45e9fb8ed29edc';
+  function gateOk(){ try { return localStorage.getItem('qbstd_auth_v1') === GATE_HASH; } catch(e){ return false; } }
+  window.__gateOk = gateOk;
+  function sha256Hex(s){
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+      return Array.prototype.map.call(new Uint8Array(buf), function(x){ return ('0' + x.toString(16)).slice(-2); }).join('');
+    });
+  }
+  window.checkGate = function(){
+    var c = (document.getElementById('gateCode').value || '').trim().toUpperCase();
+    if (!c) { document.getElementById('gateErr').textContent = '请输入授权码'; return; }
+    sha256Hex(c).then(function(h){
+      if (h === GATE_HASH) {
+        try { localStorage.setItem('qbstd_auth_v1', GATE_HASH); } catch(e){}
+        document.getElementById('gate').style.display = 'none';
+        try { refreshAll(); } catch(e){}
+      } else {
+        document.getElementById('gateErr').textContent = '授权码不对，请向管理员索取';
+      }
+    }).catch(function(){ document.getElementById('gateErr').textContent = '浏览器不支持，请换浏览器'; });
+  };
+  // 没授权就盖住页面
+  if (!gateOk()) {
+    document.addEventListener('DOMContentLoaded', function(){
+      var g = document.getElementById('gate'); if (g) g.style.display = 'flex';
+    });
+  } else {
+    document.addEventListener('DOMContentLoaded', function(){
+      var g = document.getElementById('gate'); if (g) g.style.display = 'none';
+    });
+  }
+})();
 </script></body>
 </html>

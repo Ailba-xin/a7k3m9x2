@@ -16,6 +16,10 @@ module.exports = async (req, res) => {
   if (req.method !== 'GET') { res.status(405).json({ error: 'method not allowed' }); return; }
 
   try {
+    // 鉴权：必须带上授权码，防止被别人白用
+    const need = (process.env.PROXY_TOKEN || '').trim().toUpperCase();
+    const got = String((req.query && req.query.t) || '').trim().toUpperCase();
+    if (need && got !== need) { res.status(401).json({ error: 'unauthorized' }); return; }
     const raw = req.query && req.query.u;
     if (!raw) { res.status(400).json({ error: 'missing u' }); return; }
     const target = new URL(String(raw));
