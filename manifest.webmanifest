@@ -1,6 +1,6 @@
 {
-  "name": "Q币余额表 · 独立版",
-  "short_name": "Q币余额",
+  "name": "数据面板",
+  "short_name": "面板",
   "description": "手机独立查 Q币余额，不依赖电脑",
   "start_url": "./index.html",
   "scope": "./",
