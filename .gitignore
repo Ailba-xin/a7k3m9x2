@@ -2,3 +2,6 @@ _test*
 _live*
 _probe*
 _final*
+一键导入链接*
+*.txt
+!README.md
