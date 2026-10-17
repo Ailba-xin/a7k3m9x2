@@ -60,6 +60,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
   <span id="ts">正在读取…</span>
   <button class="hdbtn" id="uinbtn" onclick="toggleUin()">隐藏QQ号</button>
   <button class="hdbtn" onclick="openImport()">导入CK</button>
+  <button class="hdbtn" onclick="openSettings()">设置</button>
 </header>
 
 <div class="sum">
@@ -76,6 +77,30 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 <ul id="list"></ul>
 <footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用</footer>
 <div id="ptbar"></div>
+
+<div class="modal" id="setBox" hidden>
+  <div class="sheet">
+    <h2>设置</h2>
+    <p>自动刷新间隔</p>
+    <select id="ivSel" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px">
+      <option value="1">1 分钟</option>
+      <option value="3">3 分钟</option>
+      <option value="5">5 分钟</option>
+      <option value="10">10 分钟</option>
+      <option value="30">30 分钟</option>
+    </select>
+    <p style="margin-top:14px">显示设置</p>
+    <label style="display:flex;align-items:center;gap:8px;font-size:15px">
+      <input type="checkbox" id="hideChk" onchange="setHide(this.checked)" style="width:18px;height:18px"> 隐藏 QQ 号
+    </label>
+    <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
+    <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
+    <div class="btns">
+      <button class="no" onclick="clearAllChanges()">清除变化记录</button>
+      <button class="ok" onclick="closeSettings()">完成</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="importBox" hidden>
   <div class="sheet">
@@ -282,8 +307,33 @@ loadAll();
 paint();
 importFromHash();
 refreshAll();
-setInterval(function(){ if(!document.hidden) refreshAll(); }, 5*60*1000);
+IV = getIV(); startTimer();
 document.addEventListener('visibilitychange',function(){ if(!document.hidden){ var t=document.getElementById('ts').textContent; if(t.indexOf('更新于')<0) refreshAll(); } });
+
+/* ---------- 设置面板（2026-10-17 按用户要求把电脑版手机端的设置搬过来） ---------- */
+var KEY_IV='qbstd_iv_v1', IV=5, _timer=null;
+function getIV(){ var v=Number(ls(KEY_IV,5)); return (v>=1&&v<=60)?v:5; }
+function startTimer(){ if(_timer) clearInterval(_timer); _timer=setInterval(function(){ if(!document.hidden) refreshAll(); }, IV*60*1000); }
+function openSettings(){
+  document.getElementById('ivSel').value=String(IV);
+  document.getElementById('hideChk').checked=HIDE;
+  document.getElementById('setCnt').textContent=ACC.length;
+  var last='—'; for(var i=0;i<ACC.length;i++){ if(ACC[i].tryAt){ last=ACC[i].tryAt; break; } }
+  document.getElementById('setLast').textContent=last;
+  document.getElementById('setBox').hidden=false;
+}
+function closeSettings(){
+  var v=Number(document.getElementById('ivSel').value)||5;
+  IV=v; lss(KEY_IV,v); startTimer();
+  document.getElementById('setBox').hidden=true;
+  document.getElementById('ts').textContent='刷新间隔已设为 '+IV+' 分钟';
+  setTimeout(function(){ if(!BUSY){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} document.getElementById('ts').textContent='更新于 '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); } }, 1500);
+}
+function setHide(v){ HIDE=!!v; lss(KEY_HIDE,HIDE); document.getElementById('uinbtn').textContent=HIDE?'显示QQ号':'隐藏QQ号'; paint(); }
+function clearAllChanges(){
+  for(var i=0;i<ACC.length;i++){ delete ACC[i].delta; delete ACC[i].deltaAt; }
+  saveAll(); paint(); closeSettings();
+}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
