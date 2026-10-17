@@ -643,7 +643,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
   <div style="background:#fff;border-radius:16px;padding:24px 20px;width:100%;max-width:380px;box-shadow:0 8px 30px rgba(16,28,44,.14)">
     <div style="font-size:38px;line-height:1;text-align:center">🔐</div>
     <h2 style="margin:8px 0 4px;font-size:19px;text-align:center">需要授权才能使用</h2>
-    <p style="font-size:13px;color:#6b7686;margin:0 0 12px;text-align:center">把这串机器码发给管理员，他会给你授权码</p>
+    <p style="font-size:13px;color:#6b7686;margin:0 0 12px;text-align:center">把这串机器码发给管理员，他会给你授权码<br><span style="font-size:12px;color:#8a96a6">（清浏览器数据不会改变机器码，不用重新授权）</span></p>
     <div id="mc" style="font:19px/1.4 ui-monospace,Consolas,monospace;text-align:center;letter-spacing:1.5px;background:#f4f7fb;border:1px dashed #c9d4e3;border-radius:10px;padding:12px 6px;font-weight:700;color:#1c589e">----</div>
     <button onclick="copyMC()" style="width:100%;margin-top:8px;padding:10px;border:1px solid #1c589e;background:#fff;color:#1c589e;border-radius:10px;font-size:14px">复制机器码</button>
     <p style="font-size:13px;margin:16px 0 6px">管理员给你的授权码 / 恢复码：</p>
@@ -671,14 +671,30 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     for (var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   }
+  // ★ 设备指纹：由 浏览器/屏幕/时区/语言/CPU 核数/像素比 算出来
+  //   清浏览器数据、清缓存都不会变（只有换浏览器/换设备/系统大版本升级才会变）
   function devId(){
-    var v = localStorage.getItem(DEV_KEY);
-    if (!v || v.length < 20) {
-      v = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
-        var r = Math.random()*16|0, v2 = c === 'x' ? r : (r&0x3|0x8); return v2.toString(16);
-      });
-      localStorage.setItem(DEV_KEY, v);
+    var cached = localStorage.getItem(DEV_KEY);
+    if (cached && cached.length >= 20) return cached;
+    var fp = [
+      navigator.userAgent || '',
+      (screen.width || 0) + 'x' + (screen.height || 0) + 'x' + (screen.colorDepth || 0),
+      (new Date()).getTimezoneOffset(),
+      navigator.language || '',
+      navigator.languages ? navigator.languages.join(',') : '',
+      navigator.hardwareConcurrency || 0,
+      window.devicePixelRatio || 1,
+      navigator.platform || ''
+    ].join('|');
+    // 稳定的 53 位哈希（两次不同位宽混合，降低碰撞）
+    var h1 = 0x811c9dc5, h2 = 0x1000193;
+    for (var i = 0; i < fp.length; i++) {
+      var ch = fp.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 16777619) >>> 0;
+      h2 = Math.imul(h2 + ch, 2654435761) >>> 0;
     }
+    var v = 'fp-' + h1.toString(36) + '-' + h2.toString(36) + '-' + fp.length.toString(36);
+    try { localStorage.setItem(DEV_KEY, v); } catch(e){}
     return v;
   }
   function machineCode(){
