@@ -12,7 +12,7 @@ import path from 'node:path';
 const OFFER = '1450000186';
 const GREEN_MAX = 4;          // 7 天内最多 4 笔，超过就锁风险（和电脑版一致）
 const DAY = 86400;
-const TRADE_DAYS = 14;        // 抓最近 14 天（够覆盖 7 天窗口 + 明细展示）
+const TRADE_DAYS = 60;        // 抓最近 60 天（风险锁定可能很久前触发，要足够长才能识别）
 
 const cks = JSON.parse(process.env.QBCKS || '[]');
 if (!Array.isArray(cks) || cks.length === 0) {
@@ -31,17 +31,25 @@ function ts2str(t) {
 }
 
 async function fetchTrades(a) {
-  const url = `https://api.unipay.qq.com/v1/r/${OFFER}/trade_record_query`
-    + `?CmdCode=query2&SubCmdCode=default&PageNum=1&BeginUnixTime=${begin}&EndUnixTime=${now}`
-    + `&PageSize=50&SystemType=portal`
-    + `&openid=${encodeURIComponent(a.openid)}&openkey=${encodeURIComponent(a.openkey)}`
-    + `&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376`;
-  const r = await fetch(url, { headers: { 'User-Agent': ua, 'Referer': 'https://pay.qq.com/h5/trade-record/' } });
-  const txt = await r.text();
-  let j;
-  try { j = JSON.parse(txt); } catch { return { ok: false, err: 'parse: ' + txt.slice(0, 80) }; }
-  if (j.ret !== 0 && j.ret !== '0') return { ok: false, err: (j.msg || ('ret=' + j.ret)) };
-  const list = j.WaterList || [];
+  // 自动翻页（每页 50 条），最多 5 页（250 条，足够 60 天）
+  const all = [];
+  for (let page = 1; page <= 5; page++) {
+    const url = `https://api.unipay.qq.com/v1/r/${OFFER}/trade_record_query`
+      + `?CmdCode=query2&SubCmdCode=default&PageNum=${page}&BeginUnixTime=${begin}&EndUnixTime=${now}`
+      + `&PageSize=50&SystemType=portal`
+      + `&openid=${encodeURIComponent(a.openid)}&openkey=${encodeURIComponent(a.openkey)}`
+      + `&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376`;
+    const r = await fetch(url, { headers: { 'User-Agent': ua, 'Referer': 'https://pay.qq.com/h5/trade-record/' } });
+    const txt = await r.text();
+    let j;
+    try { j = JSON.parse(txt); } catch { return { ok: false, err: 'parse: ' + txt.slice(0, 80) }; }
+    if (j.ret !== 0 && j.ret !== '0') return { ok: false, err: (j.msg || ('ret=' + j.ret)) };
+    const part = j.WaterList || [];
+    all.push(...part);
+    if (part.length < 50) break;          // 最后一页
+    await new Promise(r2 => setTimeout(r2, 900));   // 翻页之间也等一下，避开风控
+  }
+  const list = all;
   const trades = list.map(x => ({
     t: Number(x.PayTime || 0),
     amt: Number(x.PayAmt || 0) / 100,
