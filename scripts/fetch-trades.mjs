@@ -67,6 +67,21 @@ async function fetchTrades(a) {
 
 function isWx(t) { return t.ch === 'wechat' || t.ch === 'weixin'; }
 
+// 查询余额（用于记录"变动后的余额"快照）
+async function fetchBalance(a) {
+  const url = `https://api.unipay.qq.com/v1/r/${OFFER}/wechat_query`
+    + `?cmd=4&pf=vip_m-pay_html5-html5&pfkey=pfkey&from_h5=1&from_https=1&format=jsonp__getQBBalance`
+    + `&openid=${encodeURIComponent(a.openid)}&openkey=${encodeURIComponent(a.openkey)}`
+    + `&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376`;
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': ua } });
+    const txt = await r.text();
+    if (!/"ret"\s*:\s*0/.test(txt)) return null;
+    const m = /"qb_balance"\s*:\s*(\d+)/.exec(txt);
+    return m ? Number(m[1]) / 100 : null;
+  } catch (e) { return null; }
+}
+
 // 电脑版同款风险算法（滑动 7 天窗口 + 锁定）：
 //   1) 当前 7 天窗口内的微信笔数 = wx7
 //   2) 历史上任意一个"7 天窗口"超过 4 笔 = 超限；取**最后一次**超限窗口
@@ -98,6 +113,9 @@ function computeRisk(wxAll, n) {
 }
 
 const out = { ts: now, updated: ts2str(now), accounts: {} };
+// 读上一次的数据文件（为了累积余额快照历史）
+let oldData = { accounts: {} };
+try { oldData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data.json'), 'utf8')); } catch (e) {}
 for (const a of cks) {
   const key = String(a.uin || '');
   if (!key) continue;
@@ -114,7 +132,11 @@ for (const a of cks) {
     const r = computeRisk(wxAll, wx7.length);
     r.wx7sum = Math.round(wx7.reduce((s, t) => s + t.amt, 0) * 100) / 100;
     r.wx = wxAll.slice(0, 30).map(t => ({ t: t.t, amt: t.amt, ch: t.ch }));
-    out.accounts[key] = { nick: a.nick || '', uin: key, ...r, trades: trades.slice(0, 40) };
+    // 余额快照：每次运行记一条（时间 + 余额），累积起来就能算出"每笔变动后的余额"
+    const prevHist = (oldData.accounts && oldData.accounts[key] && Array.isArray(oldData.accounts[key].hist)) ? oldData.accounts[key].hist : [];
+    const qbNow = await fetchBalance(a);
+    const hist = (qbNow === null ? prevHist : prevHist.concat([[now, qbNow]])).slice(-400);
+    out.accounts[key] = { nick: a.nick || '', uin: key, ...r, trades: trades.slice(0, 40), qb: qbNow, hist };
     console.log(`${a.nick || key}: ${trades.length} 笔, 微信 7 天内 ${wx7.length} 笔, 风险=${r.risk}`);
   } catch (e) {
     out.accounts[key] = { nick: a.nick || '', uin: key, err: String(e.message || e), trades: [], wx: [] };

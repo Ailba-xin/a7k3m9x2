@@ -452,7 +452,13 @@ function patchRows(){
           h += '<div class="det-list">';
           for(var m=0;m<Math.min(tr.length,10);m++){
             var r3=tr[m], d3=new Date(r3.t*1000), p3=function(n){return (n<10?'0':'')+n;};
-            h += '<div class="det-row"><span class="t">'+p3(d3.getMonth()+1)+'-'+p3(d3.getDate())+' '+p3(d3.getHours())+':'+p3(d3.getMinutes())+'</span><span>'+(r3.show||'')+' '+(r3.ch||'')+' +'+Number(r3.amt).toFixed(2)+'</span></div>';
+            var balTxt = '';
+            if (s.hist && s.hist.length) {
+              for (var hi = 0; hi < s.hist.length; hi++) {
+                if (s.hist[hi][0] >= r3.t) { balTxt = ' <span style="color:#1c589e;font-weight:700">余额 ' + Number(s.hist[hi][1]).toFixed(2) + '</span>'; break; }
+              }
+            }
+            h += '<div class="det-row"><span class="t">'+p3(d3.getMonth()+1)+'-'+p3(d3.getDate())+' '+p3(d3.getHours())+':'+p3(d3.getMinutes())+'</span><span>'+(r3.show||'')+' '+(r3.ch||'')+' +'+Number(r3.amt).toFixed(2)+balTxt+'</span></div>';
           }
           h += '</div>';
         }
