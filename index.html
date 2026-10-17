@@ -769,5 +769,61 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     }
   });
 })();
+</script><script>
+/* ---------- 电脑中转（Tailscale 公网）：朋友的账号用它拿微信支付数据 ---------- */
+(function(){
+  var RELAY = 'https://qb-pc.tail22c22b.ts.net/api/relay?u=';
+  var DAY = 86400;
+  var lastRun = 0;
+
+  function tradesOf(a){
+    var now = Math.floor(Date.now()/1000), begin = now - 14*DAY;
+    var target = 'https://api.unipay.qq.com/v1/r/1450000186/trade_record_query'
+      + '?CmdCode=query2&SubCmdCode=default&PageNum=1&BeginUnixTime=' + begin + '&EndUnixTime=' + now
+      + '&PageSize=50&SystemType=portal'
+      + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
+      + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
+    return fetch(RELAY + encodeURIComponent(target), { cache: 'no-store' })
+      .then(function(r){ return r.text(); })
+      .then(function(txt){ try { return JSON.parse(txt); } catch(e){ return null; } })
+      .catch(function(){ return null; });
+  }
+
+  function computeSite(a, list){
+    var now = Math.floor(Date.now()/1000);
+    var trades = (list || []).map(function(x){
+      return { t: Number(x.PayTime||0), amt: Number(x.PayAmt||0)/100,
+               ch: String(x.PayChannel||''), show: String(x.ShowName||x.ProductName||'') };
+    }).filter(function(x){ return x.t > 0; }).sort(function(p,q){ return q.t - p.t; });
+    var wx = trades.filter(function(t){ return t.ch === 'wechat' || t.ch === 'weixin'; });
+    var wx7 = wx.filter(function(t){ return t.t >= now - 7*DAY; });
+    var risk = wx7.length > 4 ? 1 : 0;
+    return {
+      uin: a.uin, wx7: wx7.length,
+      wx7sum: Math.round(wx7.reduce(function(s,t){ return s + t.amt; }, 0) * 100) / 100,
+      risk: risk,
+      why: risk ? ('7 天内微信支付 ' + wx7.length + ' 笔，超过 4 笔') : '',
+      retry: '', trades: trades.slice(0, 40),
+      wx: wx.slice(0, 30).map(function(t){ return { t: t.t, amt: t.amt, ch: t.ch }; })
+    };
+  }
+
+  function relayAll(){
+    if (!ACC || !ACC.length) { setTimeout(relayAll, 4000); return; }
+    for (var i = 0; i < ACC.length; i++) {
+      (function(a){
+        tradesOf(a).then(function(j){
+          if (j && (j.ret === 0 || j.ret === '0')) {
+            SITE[a.uin] = computeSite(a, j.WaterList || []);
+            try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
+            patchRows();
+          }
+        });
+      })(ACC[i]);
+    }
+  }
+  window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
+  setInterval(relayAll, 10 * 60 * 1000);
+})();
 </script></body>
 </html>
