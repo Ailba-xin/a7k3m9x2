@@ -339,5 +339,90 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 }
 </script>
-</body>
+<style>
+.wxs{font-size:12px;color:#6b7686;margin-top:3px;white-space:nowrap}
+.wxs b{color:#1d2733}
+.wxs.warn{color:#b8860b}
+.tag{font-size:11.5px;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.tag-risk{background:#ffecec;color:#c0392b;border:1px solid #f6c9c9;font-weight:700}
+.tag-ok{background:#e8f6ec;color:#16873f}
+.det-list{margin-top:6px;border-top:1px dashed #e3e8ef;padding-top:6px}
+.det-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:#3a4655}
+.det-row .t{color:#6b7686;margin-right:8px}
+.det-row.wx{color:#0f7a37;font-weight:600}
+.det-risk{background:#ffecec;border:1px solid #f6c9c9;color:#c0392b;border-radius:8px;padding:6px 8px;font-size:12px;margin-top:6px;line-height:1.5}
+</style>
+<script>
+/* ---------- 交易数据（来自 GitHub Actions 定时抓取的 data.json，同源无跨域） ---------- */
+var SITE = {};
+function loadSite(){
+  return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if(j && j.accounts){ SITE = j.accounts; patchRows(); } })
+    .catch(function(){});
+}
+function uinOf(li){
+  var el = li.querySelector('.uin');
+  return el ? (el.getAttribute('data-uin') || '') : '';
+}
+function patchRows(){
+  var lis = document.querySelectorAll('#list li');
+  for(var i=0;i<lis.length;i++){
+    var li = lis[i];
+    var nameEl = li.querySelector('.name');
+    var amtEl = li.querySelector('.amt');
+    if(!nameEl || !amtEl) continue;
+    // 从账号数据里找 uid：页面渲染时把 uin 放在 .uin 的 textContent 里（已可能被隐藏），
+    // 所以我们用 ACC 数组的下标来定位（顺序一致）
+    var a = ACC[i];
+    if(!a) continue;
+    var s = SITE[a.uin] || {};
+    // 1) 微信支付格
+    var wxs = amtEl.querySelector('.wxs');
+    if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
+    if(s.err){ wxs.textContent = '查询失败'; wxs.className='wxs warn'; }
+    else if(typeof s.wx7 === 'number'){ wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); }
+    else { wxs.textContent=''; }
+    // 2) 风险标签
+    var tag = nameEl.querySelector('.tag-risk');
+    if(s.risk===1){
+      if(!tag){ tag=document.createElement('span'); tag.className='tag tag-risk'; tag.textContent='⚠ 账号风险'; nameEl.appendChild(tag); }
+      tag.title = (s.why||'') + (s.retry? '｜建议 '+s.retry+' 再试':'');
+    } else if(tag){ tag.remove(); }
+    // 3) 明细：微信支付记录 + 交易记录
+    var det = li.querySelector('.det');
+    if(det){
+      var key = 'det_built_' + a.uin + '_' + (s.wx7===undefined?'x':s.wx7) + '_' + (s.trades?s.trades.length:0);
+      if(det.getAttribute('data-k') !== key){
+        det.setAttribute('data-k', key);
+        var h = '';
+        if(s.risk===1) h += '<div class="det-risk">⚠ '+ (s.why||'这个号已经充不进微信支付了') + (s.retry? '<br>建议 '+s.retry+' 再试一笔':'') +'</div>';
+        var wx = s.wx || [];
+        if(wx.length){
+          h += '<div class="det-list">';
+          for(var k=0;k<Math.min(wx.length,6);k++){
+            var r2=wx[k], d2=new Date(r2.t*1000), p2=function(n){return (n<10?'0':'')+n;};
+            h += '<div class="det-row wx"><span class="t">'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes())+'</span><span>微信 +'+Number(r2.amt).toFixed(2)+'</span></div>';
+          }
+          h += '</div>';
+        }
+        var tr = s.trades || [];
+        if(tr.length){
+          h += '<div class="det-list">';
+          for(var m=0;m<Math.min(tr.length,10);m++){
+            var r3=tr[m], d3=new Date(r3.t*1000), p3=function(n){return (n<10?'0':'')+n;};
+            h += '<div class="det-row"><span class="t">'+p3(d3.getMonth()+1)+'-'+p3(d3.getDate())+' '+p3(d3.getHours())+':'+p3(d3.getMinutes())+'</span><span>'+(r3.show||'')+' '+(r3.ch||'')+' +'+Number(r3.amt).toFixed(2)+'</span></div>';
+          }
+          h += '</div>';
+        }
+        det.innerHTML = h || det.innerHTML;
+      }
+    }
+  }
+}
+loadSite();
+setInterval(function(){ loadSite(); }, 10*60*1000);
+setInterval(patchRows, 1500);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadSite(); });
+</script></body>
 </html>

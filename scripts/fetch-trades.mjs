@@ -25,9 +25,12 @@ const now = Math.floor(Date.now() / 1000);
 const begin = now - TRADE_DAYS * DAY;
 
 function ts2str(t) {
-  const d = new Date(t * 1000);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  // 用北京时间（GitHub Actions 默认是 UTC，会差 8 小时）
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  }).formatToParts(new Date(t * 1000)).reduce((o, x) => (o[x.type] = x.value, o), {});
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 async function fetchTrades(a) {
