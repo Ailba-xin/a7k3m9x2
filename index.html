@@ -93,6 +93,10 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
     <label style="display:flex;align-items:center;gap:8px;font-size:15px">
       <input type="checkbox" id="hideChk" onchange="setHide(this.checked)" style="width:18px;height:18px"> 隐藏 QQ 号
     </label>
+    <p style="margin-top:16px">加密钥匙（微信支付/风险/明细需要它）</p>
+    <input id="keyInp" type="text" placeholder="粘贴 64 位钥匙" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:13px ui-monospace,Consolas,monospace">
+    <p id="keyState" style="font-size:12px;margin-top:6px">当前：未设置</p>
+    <button onclick="saveKey()" style="margin-top:8px;width:100%;padding:11px;border:0;border-radius:10px;background:#1c589e;color:#fff;font-size:15px">保存钥匙</button>
     <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
     <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
     <div class="btns">
@@ -327,6 +331,7 @@ function openSettings(){
   document.getElementById('ivSel').value=String(IV);
   document.getElementById('hideChk').checked=HIDE;
   document.getElementById('setCnt').textContent=ACC.length;
+  refreshKeyState();
   var last='—'; for(var i=0;i<ACC.length;i++){ if(ACC[i].tryAt){ last=ACC[i].tryAt; break; } }
   document.getElementById('setLast').textContent=last;
   document.getElementById('setBox').hidden=false;
@@ -339,6 +344,23 @@ function closeSettings(){
   setTimeout(function(){ if(!BUSY){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} document.getElementById('ts').textContent='更新于 '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); } }, 1500);
 }
 function setHide(v){ HIDE=!!v; lss(KEY_HIDE,HIDE); document.getElementById('uinbtn').textContent=HIDE?'显示QQ号':'隐藏QQ号'; paint(); }
+function refreshKeyState(){
+  var k = ls('qbstd_key_v1','');
+  var el = document.getElementById('keyState');
+  if (!el) return;
+  el.textContent = (k && String(k).length===64) ? ('当前：已设置 ✓（' + String(k).slice(0,8) + '…）') : '当前：未设置 ✗';
+  el.style.color = (k && String(k).length===64) ? '#16873f' : '#c0392b';
+}
+function saveKey(){
+  var v = (document.getElementById('keyInp').value || '').trim();
+  if (!v) { alert('请先粘贴钥匙（64 位字母数字）'); return; }
+  if (v.length !== 64) { alert('钥匙长度不对：应该是 64 位，现在是 ' + v.length + ' 位'); return; }
+  lss('qbstd_key_v1', v);
+  refreshKeyState();
+  alert('钥匙已保存 ✅ 正在重新读取加密数据…');
+  loadSite();
+  setTimeout(function(){ diagNow(); patchRows(); }, 1500);
+}
 function clearAllChanges(){
   for(var i=0;i<ACC.length;i++){ delete ACC[i].delta; delete ACC[i].deltaAt; }
   saveAll(); paint(); closeSettings();
