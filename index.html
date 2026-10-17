@@ -331,6 +331,7 @@ function openSettings(){
   document.getElementById('ivSel').value=String(IV);
   document.getElementById('hideChk').checked=HIDE;
   document.getElementById('setCnt').textContent=ACC.length;
+  document.getElementById('keyInp').value='';
   refreshKeyState();
   var last='—'; for(var i=0;i<ACC.length;i++){ if(ACC[i].tryAt){ last=ACC[i].tryAt; break; } }
   document.getElementById('setLast').textContent=last;
@@ -348,7 +349,7 @@ function refreshKeyState(){
   var k = ls('qbstd_key_v1','');
   var el = document.getElementById('keyState');
   if (!el) return;
-  el.textContent = (k && String(k).length===64) ? ('当前：已设置 ✓（' + String(k).slice(0,8) + '…）') : '当前：未设置 ✗';
+  el.textContent = (k && String(k).length===64) ? '当前：已设置 ✓（内容已隐藏，如需更换请在下面重新粘贴）' : '当前：未设置 ✗';
   el.style.color = (k && String(k).length===64) ? '#16873f' : '#c0392b';
 }
 function saveKey(){
@@ -356,6 +357,7 @@ function saveKey(){
   if (!v) { alert('请先粘贴钥匙（64 位字母数字）'); return; }
   if (v.length !== 64) { alert('钥匙长度不对：应该是 64 位，现在是 ' + v.length + ' 位'); return; }
   lss('qbstd_key_v1', v);
+  document.getElementById('keyInp').value = '';   // 用完就清掉，页面上不再显示钥匙
   refreshKeyState();
   alert('钥匙已保存 ✅ 正在重新读取加密数据…');
   loadSite();
