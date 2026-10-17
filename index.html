@@ -9,7 +9,10 @@
 <style>
 :root{--blue:#1c589e;--green:#16873f;--red:#c0392b;--amber:#b8860b;--gray:#6b7686;--bg:#eef2f8;--card:#fff;--line:#dfe4ec}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:#1d2733;font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding-bottom:28px}
+html{width:100%;max-width:100%;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:#1d2733;font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding-bottom:28px;width:100%;max-width:100vw;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word}
+header,section,ul,footer,.sum,.row,.who,.amt,.empty,.sheet,.det{min-width:0;max-width:100%}
+.sum>div{min-width:0}
 header{background:var(--blue);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 header h1{margin:0;font-size:18px;font-weight:700}
 header h1 .sub{font-size:12px;font-weight:400;opacity:.85;margin-left:4px}

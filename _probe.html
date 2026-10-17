@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Q币余额表 · 独立版</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1c589e">
+<style>
+:root{--blue:#1c589e;--green:#16873f;--red:#c0392b;--amber:#b8860b;--gray:#6b7686;--bg:#eef2f8;--card:#fff;--line:#dfe4ec}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#1d2733;font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding-bottom:28px}
+header{background:var(--blue);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header h1{margin:0;font-size:18px;font-weight:700}
+header h1 .sub{font-size:12px;font-weight:400;opacity:.85;margin-left:4px}
+header #ts{font-size:12px;opacity:.9;margin-right:auto}
+.hdbtn{font-size:12px;padding:4px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.55);background:transparent;color:#fff;cursor:pointer;-webkit-appearance:none}
+.sum{display:flex;gap:10px;padding:12px 14px 4px}
+.sum>div{flex:1;background:var(--card);border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px rgba(22,32,43,.06)}
+.sum .k{display:block;font-size:13px;color:var(--gray)}
+.sum b{display:block;font-size:26px;font-weight:800;color:#0f7a37;letter-spacing:.3px}
+.empty{margin:28px 14px;padding:26px;background:var(--card);border-radius:14px;text-align:center;color:var(--gray)}
+.empty button{margin-top:14px;font-size:16px;padding:10px 20px;border:0;border-radius:10px;background:var(--blue);color:#fff}
+ul#list{list-style:none;margin:8px 0 0;padding:0 10px}
+ul#list li{background:var(--card);border-radius:12px;margin-bottom:8px;box-shadow:0 2px 8px rgba(22,32,43,.05);overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.who{flex:1 1 auto;min-width:0}
+.name{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uin{font-size:12.5px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amt{text-align:right;flex:0 0 auto}
+.qb{font-size:22px;font-weight:800;color:#0f7a37;font-variant-numeric:tabular-nums}
+.qd{font-size:12px;color:var(--gray)}
+.badge{font-size:12px;padding:3px 7px;border-radius:7px;white-space:nowrap;font-weight:600}
+.b-delta-down{background:#fdecea;color:var(--red)}
+.b-delta-up{background:#e8f6ec;color:var(--green)}
+.b-err{background:#fdecea;color:var(--red)}
+.risk{background:#ffecec;color:var(--red);border:1px solid #f6c9c9;font-weight:700}
+.det{padding:0 14px 12px;font-size:12.5px;color:var(--gray);display:flex;gap:14px;flex-wrap:wrap}
+.det .v{color:#1d2733;font-weight:600}
+footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
+.modal{position:fixed;inset:0;background:rgba(16,24,34,.45);display:flex;align-items:flex-end;z-index:99}
+.modal[hidden]{display:none}
+.sheet{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow:auto}
+.sheet h2{margin:0 0 6px;font-size:17px}
+.sheet p{margin:4px 0 10px;font-size:13px;color:var(--gray)}
+.sheet textarea{width:100%;height:190px;border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+.sheet .btns{display:flex;gap:10px;margin-top:12px}
+.sheet .btns button{flex:1;padding:12px;border-radius:10px;border:0;font-size:16px}
+.sheet .btns .ok{background:var(--blue);color:#fff}
+.sheet .btns .no{background:#eef1f6;color:#33404f}
+#ptbar{position:fixed;left:0;right:0;top:0;z-index:120;padding:9px;text-align:center;font-size:14px;color:#fff;background:var(--blue);transform:translateY(-100%);transition:transform .15s}
+</style>
+</head>
+<body>
+<header>
+  <h1>Q币余额表<span class="sub">独立版</span></h1>
+  <span id="ts">正在读取…</span>
+  <button class="hdbtn" id="uinbtn" onclick="toggleUin()">隐藏QQ号</button>
+  <button class="hdbtn" onclick="openImport()">导入CK</button>
+</header>
+
+<div class="sum">
+  <div><span class="k">Q币合计</span><b id="sqb">—</b></div>
+  <div><span class="k">Q点合计</span><b id="sqd">—</b></div>
+</div>
+
+<div class="empty" id="empty" hidden>
+  还没有账号<br>
+  <span style="font-size:13px">先在电脑上用「右键 → 复制全部 CK」，把内容粘到这里</span><br>
+  <button onclick="openImport()">粘贴 CK 导入</button>
+</div>
+
+<ul id="list"></ul>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用</footer>
+<div id="ptbar"></div>
+
+<div class="modal" id="importBox" hidden>
+  <div class="sheet">
+    <h2>导入账号</h2>
+    <p>格式每行一个：<code>昵称|QQ号|openid|openkey</code><br>
+       也可以直接粘 <code>openid=...&amp;openkey=...</code> 这种参数串。<br>
+       内容只存在这台手机里，不会上传任何服务器。</p>
+    <textarea id="importText" placeholder="二巴.|2571251486|B7999E7B...|5B81865..."></textarea>
+    <div class="btns">
+      <button class="no" onclick="closeImport()">取消</button>
+      <button class="ok" onclick="doImport()">导入</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY_ACC='qbstd_acc_v1', KEY_HIDE='qbstd_hide_v1';
+var ACC=[], HIDE=false, BUSY=false, FIRST=true;
+
+function ls(k,d){ try{ var v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }
+function lss(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+function loadAll(){
+  ACC = ls(KEY_ACC, []) || [];
+  HIDE = ls(KEY_HIDE, false) === true;
+  document.getElementById('uinbtn').textContent = HIDE ? '显示QQ号' : '隐藏QQ号';
+}
+function saveAll(){ lss(KEY_ACC, ACC); }
+
+function maskUin(u){
+  if(!u) return '';
+  if(!HIDE) return u;
+  return u.length<=6 ? u.substring(0,1)+'***' : u.substring(0,4)+'****'+u.substring(u.length-2);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return c==='&'?'&amp;':(c==='<'?'&lt;':(c==='>'?'&gt;':'&quot;'));}); }
+function f2(v){ return (v===null||v===undefined||v==='')?'—':Number(v).toFixed(2); }
+
+/* ---------- JSONP 查询：一次一个（接口回调名固定 _getQBBalance） ---------- */
+var _cb=null, _seq=0;
+function _getQBBalance(data){
+  if(typeof _cb==='function'){ var f=_cb; _cb=null; f(data); }
+}
+function queryOne(a, done){
+  var base='https://api.unipay.qq.com/v1/r/1450000186/wechat_query?cmd=4&pf=vip_m-pay_html5-html5&pfkey=pfkey&from_h5=1&from_https=1&format=jsonp__getQBBalance';
+  var url=base
+    +'&openid='+encodeURIComponent(a.openid||'')
+    +'&openkey='+encodeURIComponent(a.openkey||'')
+    +'&session_id='+encodeURIComponent(a.sessionId||'openid')
+    +'&session_type='+encodeURIComponent(a.sessionType||'kp_accesstoken')
+    +'&qq_appid='+encodeURIComponent(a.appid||'101502376')
+    +'&_t='+(Date.now())+'_'+(++_seq);
+  var finished=false;
+  function fin(d){ if(finished) return; finished=true; if(_cb===fin2) _cb=null; done(d); }
+  var fin2=fin;
+  _cb=fin;
+  var s=document.createElement('script');
+  s.src=url;
+  s.onerror=function(){ fin(null); };
+  document.body.appendChild(s);
+  setTimeout(function(){ fin(null); }, 12000);
+}
+
+function refreshAll(){
+  if(BUSY) return;
+  if(!ACC.length){ paint(); return; }
+  BUSY=true;
+  document.getElementById('ts').textContent='查询中…';
+  var i=0, okc=0;
+  function next(){
+    if(i>=ACC.length){
+      BUSY=false;
+      document.getElementById('ts').textContent='更新于 '+hms();
+      saveAll(); paint();
+      return;
+    }
+    var a=ACC[i];
+    queryOne(a, function(d){
+      a.tryAt=hms();
+      if(d && d.ret===0){
+        var qb=(Number(d.qb_balance||0))/100, qd=(Number(d.qd_balance||0))/100;
+        if(a.qb!==undefined && a.qb!==null && Math.abs(a.qb-qb)>0.004){
+          a.delta=Math.round((qb-a.qb)*100)/100;
+          a.deltaAt=mdhm();
+        }
+        a.qb=qb; a.qd=qd; a.err=''; okc++;
+      } else {
+        a.err = (d && d.msg) ? d.msg : '查询失败';
+      }
+      i++; next();
+    });
+  }
+  next();
+}
+
+function hms(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+function mdhm(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} return p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+
+/* ---------- 渲染 ---------- */
+function paint(){
+  var ul=document.getElementById('list');
+  var empty=document.getElementById('empty');
+  empty.hidden = ACC.length>0;
+  var h='', sqb=0, sqd=0;
+  for(var i=0;i<ACC.length;i++){
+    var a=ACC[i];
+    if(a.qb!==undefined && a.qb!==null) sqb+=Number(a.qb);
+    if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
+    h+='<li><div class="row">';
+    h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
+    h+='<div class="uin">'+esc(maskUin(a.uin||''))+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
+    h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
+    if(a.err) h+='<span class="badge b-err">⚠ 查询失败</span>';
+    h+='</div>';
+    h+='<div class="det">';
+    h+='<span>Q币 <span class="v">'+f2(a.qb)+'</span></span>';
+    h+='<span>Q点 <span class="v">'+f2(a.qd)+'</span></span>';
+    h+='<span>最近查询 <span class="v">'+esc(a.tryAt||'—')+'</span></span>';
+    if(a.delta) h+='<span style="cursor:pointer" onclick="clearDelta('+i+')">清除变化</span>';
+    h+='</div></li>';
+  }
+  ul.innerHTML=h;
+  document.getElementById('sqb').textContent=f2(Math.round(sqb*100)/100);
+  document.getElementById('sqd').textContent=f2(Math.round(sqd*100)/100);
+}
+function clearDelta(i){ if(ACC[i]){ delete ACC[i].delta; delete ACC[i].deltaAt; saveAll(); paint(); } }
+
+function toggleUin(){
+  HIDE=!HIDE; lss(KEY_HIDE,HIDE);
+  document.getElementById('uinbtn').textContent=HIDE?'显示QQ号':'隐藏QQ号';
+  paint();
+}
+
+/* ---------- 导入 ---------- */
+function openImport(){
+  document.getElementById('importText').value='';
+  document.getElementById('importBox').hidden=false;
+}
+function closeImport(){ document.getElementById('importBox').hidden=true; }
+function doImport(){
+  var raw=document.getElementById('importText').value||'';
+  var lines=raw.split(/\r?\n/);
+  var added=0, updated=0;
+  for(var i=0;i<lines.length;i++){
+    var ln=lines[i].trim();
+    if(!ln) continue;
+    var p=ln.split('|');
+    var nick='', uin='', oid='', okey='';
+    if(p.length>=4){ nick=p[0].trim(); uin=p[1].trim(); oid=p[2].trim(); okey=p[3].trim(); }
+    else {
+      var m1=/openid=([0-9A-Za-z]+)/.exec(ln), m2=/openkey=([0-9A-Za-z]+)/.exec(ln);
+      if(!m1||!m2) continue;
+      oid=m1[1]; okey=m2[1];
+      var mu=/[?&]uin=([0-9]+)/.exec(ln); if(mu) uin=mu[1];
+    }
+    if(!oid||!okey) continue;
+    var found=null;
+    for(var j=0;j<ACC.length;j++) if(ACC[j].openid===oid) { found=ACC[j]; break; }
+    if(found){ found.nick=nick||found.nick; found.uin=uin||found.uin; found.openkey=okey; updated++; }
+    else { ACC.push({nick:nick,uin:uin,openid:oid,openkey:okey}); added++; }
+  }
+  saveAll();
+  closeImport();
+  paint();
+  if(added+updated>0){ refreshAll(); }
+  else { alert('没有识别到有效内容。\n请用电脑版「右键 → 复制全部 CK」复制后再粘贴。'); }
+}
+
+/* ---------- 下拉刷新 ---------- */
+var ptStart=0, ptPull=0, ptOn=false, ptBarEl=null;
+function ptBar(show,text,color){
+  if(!ptBarEl) ptBarEl=document.getElementById('ptbar');
+  if(text) ptBarEl.textContent=text;
+  ptBarEl.style.background=color||'#1c589e';
+  ptBarEl.style.transform=show?'translateY(0)':'translateY(-100%)';
+}
+function atTop(){ return (window.pageYOffset||document.documentElement.scrollTop||0)<=0; }
+document.addEventListener('touchstart',function(e){ if(e.touches.length!==1)return; ptStart=e.touches[0].clientY; ptPull=0; ptOn=atTop(); },{passive:true});
+document.addEventListener('touchmove',function(e){
+  if(!ptOn||e.touches.length!==1)return;
+  var dy=e.touches[0].clientY-ptStart;
+  if(dy<=0){ if(ptPull>0){ptPull=0;ptBar(false);} return; }
+  if(!atTop()){ ptOn=false; ptBar(false); return; }
+  ptPull=dy;
+  ptBar(true, dy>70?'松开手就刷新':'下拉可以刷新', dy>70?'#16873f':'#1c589e');
+  if(e.cancelable) e.preventDefault();
+},{passive:false});
+document.addEventListener('touchend',function(){ if(!ptOn)return; var dy=ptPull; ptOn=false; ptPull=0; if(dy>70){ ptBar(true,'正在刷新…'); refreshAll(); setTimeout(function(){ptBar(false);},1200); } else ptBar(false); },{passive:true});
+
+/* ---------- 启动 ---------- */
+loadAll();
+paint();
+refreshAll();
+setInterval(function(){ if(!document.hidden) refreshAll(); }, 5*60*1000);
+document.addEventListener('visibilitychange',function(){ if(!document.hidden){ var t=document.getElementById('ts').textContent; if(t.indexOf('更新于')<0) refreshAll(); } });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+<script>
+setTimeout(function(){
+  var w = document.documentElement.scrollWidth;
+  var lines = [];
+  document.querySelectorAll('body, body *').forEach(function(el){
+    var r = el.getBoundingClientRect();
+    if(r.width > 0 && r.right > 395){
+      lines.push(el.tagName.toLowerCase() + (el.id?'#'+el.id:'') + (el.className&&typeof el.className==='string'?'.['+el.className+']':'') + ' w=' + Math.round(r.width) + ' right=' + Math.round(r.right));
+    }
+  });
+  var d = document.createElement('div');
+  d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;font:11px/1.5 monospace;padding:6px;white-space:pre-wrap;max-height:70vh;overflow:auto';
+  d.textContent = 'scrollWidth=' + w + '\n' + lines.slice(0,12).join('\n');
+  document.body.appendChild(d);
+}, 600);
+</script></body>
+</html>
