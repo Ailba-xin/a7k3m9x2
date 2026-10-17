@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>提交 CK（生成专属版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef2f8;font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#1d2733;padding:0 0 30px}
+header{background:#1c589e;color:#fff;padding:14px 16px;font-size:18px;font-weight:700}
+.card{background:#fff;border-radius:12px;margin:12px 14px;padding:14px}
+h2{font-size:16px;margin:0 0 10px}
+ol{margin:6px 0 0 18px;padding:0;font-size:14px;line-height:1.8}
+textarea{width:100%;height:170px;border:1px solid #dfe4ec;border-radius:10px;padding:10px;font:13px/1.5 ui-monospace,Consolas,monospace}
+button{width:100%;margin-top:12px;padding:13px;border:0;border-radius:10px;background:#1c589e;color:#fff;font-size:16px}
+button:active{opacity:.85}
+#out{display:none;margin-top:14px}
+#codeBox{width:100%;height:120px;border:1px solid #b9e2c6;background:#f4fbf6;border-radius:10px;padding:10px;font:12px ui-monospace,monospace}
+.tip{font-size:13px;color:#6b7686;margin-top:8px}
+.warn{background:#fff7e6;border:1px solid #f3d9a4;color:#8a5a00;border-radius:10px;padding:9px 11px;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<header>提交 CK · 生成专属手机版</header>
+<div class="card">
+  <h2>怎么操作</h2>
+  <ol>
+    <li>在**电脑版** Q币余额表里：右键账号表 → 「复制全部 CK」</li>
+    <li>把复制到的内容粘贴到下面</li>
+    <li>点「生成提交码」</li>
+    <li>长按提交码 → 复制 → 发给群主</li>
+  </ol>
+  <p class="tip">CK 只是用来查余额和充值记录的票据，不是密码；内容不会上传到任何地方，只在你手机里生成一串提交码。</p>
+</div>
+<div class="card">
+  <h2>粘贴 CK</h2>
+  <textarea id="inp" placeholder="每行一个账号，格式：昵称|QQ号|openid|openkey"></textarea>
+  <button onclick="gen()">生成提交码</button>
+  <div id="out">
+    <h2 style="margin-top:14px">提交码（长按复制，发给群主）</h2>
+    <textarea id="codeBox" readonly onclick="this.select()"></textarea>
+    <p class="tip" id="cnt"></p>
+    <div class="warn">这串码等于你的账号票据，只发给群主，不要发到群里。</div>
+  </div>
+</div>
+<script>
+function gen(){
+  var t = document.getElementById('inp').value || '';
+  var lines = t.split(/\r?\n/);
+  var ok = [];
+  for (var i=0;i<lines.length;i++){
+    var ln = lines[i].trim();
+    if(!ln) continue;
+    var p = ln.split('|');
+    if(p.length >= 4){
+      var nick = p[0].trim(), uin = p[1].trim(), oid = p[2].trim(), okey = p[3].trim();
+      if(oid.length === 32 && okey.length === 32) ok.push(nick + '|' + uin + '|' + oid + '|' + okey);
+    } else {
+      var m1 = /openid=([0-9A-Za-z]{32})/.exec(ln), m2 = /openkey=([0-9A-Za-z]{32})/.exec(ln);
+      if(m1 && m2) ok.push(('').trim() + '||' + m1[1] + '|' + m2[1]);
+    }
+  }
+  if(!ok.length){ alert('没有识别到有效内容\n\n每行格式要是：昵称|QQ号|openid|openkey\n请用电脑版「右键 → 复制全部 CK」复制后粘贴'); return; }
+  var text = ok.join('\n');
+  var b64 = btoa(unescape(encodeURIComponent(text)));
+  document.getElementById('codeBox').value = 'QBCK1.' + b64;
+  document.getElementById('cnt').textContent = '已识别 ' + ok.length + ' 个账号（提交码 ' + (('QBCK1.' + b64).length) + ' 字符）';
+  document.getElementById('out').style.display = 'block';
+  document.getElementById('out').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
