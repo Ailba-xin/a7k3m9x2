@@ -468,9 +468,9 @@ document.addEventListener('visibilitychange', function(){ if(!document.hidden) l
 #alertbar.show{display:block}
 #alertbar.warn{background:#fff7e6;border:1px solid #f3d9a4;color:#8a5a00}
 #alertbar.danger{background:#fdecea;border:1px solid #f6c9c9;color:#b03024}
-ul#list li .det{display:none}
-ul#list li.open .det{display:flex;flex-direction:column}
-ul#list li.open .row .arrow{transform:rotate(90deg)}
+ul#list li .det{display:flex;flex-direction:column}
+ul#list li.closed .det{display:none}
+ul#list li.closed .row .arrow{transform:rotate(0deg)}
 .arrow{display:inline-block;transition:transform .18s;color:#9aa6b6;font-size:12px;margin-left:2px}
 #topBtn{position:fixed;right:16px;bottom:22px;width:46px;height:46px;border-radius:50%;border:0;background:rgba(28,88,158,.92);color:#fff;font-size:20px;display:none;z-index:60;box-shadow:0 4px 14px rgba(16,28,44,.28)}
 #topBtn.show{display:block}
@@ -531,7 +531,7 @@ function patchRows2(){
       row.classList.add('li-tap');
     }
     // 2) 已读：大额变动标记过就自动收起来
-    if (bigOf(a) && isRead(i) && !li.classList.contains('open')) li.classList.add('read');
+    if (bigOf(a) && isRead(i)) li.classList.add('read');
     // 3) 折叠状态下不加载明细内容（省事：保持原样，CSS 控制显示）
   }
   // 回顶部按钮
@@ -547,9 +547,8 @@ document.addEventListener('click', function (ev) {
   var lis = document.querySelectorAll('#list li'), idx = -1;
   for (var i = 0; i < lis.length; i++) if (lis[i] === li) { idx = i; break; }
   if (idx < 0) return;
-  var wasOpen = li.classList.contains('open');
-  if (wasOpen) { li.classList.remove('open'); return; }
-  li.classList.add('open');
+  if (!li.classList.contains('closed')) { li.classList.add('closed'); return; }
+  li.classList.remove('closed');
   markRead(idx);
   var a = ACC[idx];
   if (a && a.delta) { delete a.delta; delete a.deltaAt; saveAll(); }
@@ -564,7 +563,7 @@ document.addEventListener('click', function (ev) {
   var now = Date.now();
   var lis = document.querySelectorAll('#list li'), idx = -1;
   for (var i = 0; i < lis.length; i++) if (lis[i] === li) { idx = i; break; }
-  if (now - lastTapT < 340 && idx === lastTapI) { li.classList.remove('open'); lastTapT = 0; return; }
+  if (now - lastTapT < 340 && idx === lastTapI) { li.classList.add('closed'); lastTapT = 0; return; }
   lastTapT = now; lastTapI = idx;
 }, false);
 
