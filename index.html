@@ -599,35 +599,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
 #diag button{margin-left:8px;font-size:12px;padding:3px 9px;border-radius:7px;border:1px solid currentColor;background:transparent;color:inherit}
 </style>
 <script>
-/* ---------- 自检：数据是否就绪 ---------- */
-function diagNow(){
-  var d = document.getElementById('diag');
-  if (!d) return;
-  var key = ls('qbstd_key_v1', '');
-  var hasKey = !!(key && String(key).length === 64);
-  var n = 0;
-  for (var k in SITE) if (SITE.hasOwnProperty(k)) n++;
-  if (hasKey && n > 0) {
-    d.className = 'show ok';
-    d.innerHTML = '数据已就绪 ✓ 共 ' + n + ' 个号（微信/风险/明细可看）';
-  } else if (hasKey && n === 0) {
-    d.className = 'show bad';
-    d.innerHTML = '钥匙已导入 ✓ 但数据还没解出来（稍等自动重试）';
-  } else {
-    d.className = 'show bad';
-    d.className = ''; d.textContent = '';
-  }
-}
-setInterval(diagNow, 1500);
-window.addEventListener('load', function(){
-  var sum = document.querySelector('.sum');
-  if (sum && sum.parentNode && !document.getElementById('diag')) {
-    var el = document.createElement('div');
-    el.id = 'diag';
-    sum.parentNode.insertBefore(el, sum.nextSibling);
-    setTimeout(diagNow, 600);
-  }
-});
+/* 自检块已移除 */
 </script><div id="errbar" style="display:none;margin:8px 14px 0;padding:10px 12px;border-radius:10px;background:#fdecea;border:1px solid #f6c9c9;color:#b03024;font:12.5px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all"></div>
 <script>
 /* ---------- 全局错误捕获：出错时直接在页面显示原因（方便远程排查） ---------- */
