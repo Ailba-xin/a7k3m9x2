@@ -587,5 +587,43 @@ window.addEventListener('scroll', function(){ patchRows2(); }, { passive: true }
 /* 定时合并进主渲染（原来的 patchRows 也在跑） */
 setInterval(function(){ patchRows2(); }, 1300);
 window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
+</script><style>
+#diag{margin:8px 14px 0;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.55;display:none}
+#diag.show{display:block}
+#diag.ok{background:#e8f6ec;border:1px solid #b9e2c6;color:#0f6b35}
+#diag.bad{background:#fdecea;border:1px solid #f6c9c9;color:#b03024}
+#diag b{font-weight:700}
+#diag button{margin-left:8px;font-size:12px;padding:3px 9px;border-radius:7px;border:1px solid currentColor;background:transparent;color:inherit}
+</style>
+<script>
+/* ---------- 自检：钥匙 / 数据 是否就绪（缺钥匙时微信/风险/明细不可能显示） ---------- */
+function diagNow(){
+  var d = document.getElementById('diag');
+  if (!d) return;
+  var key = ls('qbstd_key_v1', '');
+  var hasKey = !!(key && String(key).length === 64);
+  var n = 0;
+  for (var k in SITE) if (SITE.hasOwnProperty(k)) n++;
+  if (hasKey && n > 0) {
+    d.className = 'show ok';
+    d.innerHTML = '数据已就绪 ✓ 共 ' + n + ' 个号（微信/风险/明细可看）';
+  } else if (hasKey && n === 0) {
+    d.className = 'show bad';
+    d.innerHTML = '钥匙已导入 ✓ 但数据还没解出来（稍等自动重试）';
+  } else {
+    d.className = 'show bad';
+    d.innerHTML = '⚠ 未检测到加密钥匙 —— 微信支付/风险/明细无法显示。<br>请用「导入链接」在本浏览器打开一次（不要用主屏幕图标或旧书签）。';
+  }
+}
+setInterval(diagNow, 1500);
+window.addEventListener('load', function(){
+  var sum = document.querySelector('.sum');
+  if (sum && sum.parentNode && !document.getElementById('diag')) {
+    var el = document.createElement('div');
+    el.id = 'diag';
+    sum.parentNode.insertBefore(el, sum.nextSibling);
+    setTimeout(diagNow, 600);
+  }
+});
 </script></body>
 </html>
