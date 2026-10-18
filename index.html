@@ -387,8 +387,13 @@ async function decryptPayload(j){
     return JSON.parse(new TextDecoder().decode(pt));
   } catch (e) { return null; }
 }
-function loadSite(){
-  return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
+function hasDataKey() {
+    try { return !!(localStorage.getItem('qbstd_key_v1') || '').trim(); } catch (e) { return false; }
+  }
+  function loadSite(){
+    // ★ 没有钥匙 = 别人的设备 → 不请求 data.json（保护主人数据）
+    if (!hasDataKey()) { SITE = null; try { localStorage.removeItem('qbstd_site_cache_v1'); } catch (e) { } return; }
+    return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(j){
       if (!j) return;
