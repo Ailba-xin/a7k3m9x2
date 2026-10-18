@@ -392,7 +392,7 @@ function hasDataKey() {
   }
   function loadSite(){
     // ★ 没有钥匙 = 别人的设备 → 不请求 data.json（保护主人数据）
-    if (!hasDataKey()) { SITE = null; try { localStorage.removeItem('qbstd_site_cache_v1'); } catch (e) { } return; }
+    if (!hasDataKey()) { SITE = {}; try { localStorage.removeItem('qbstd_site_cache_v1'); } catch (e) { } return; }
     return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(j){
@@ -422,7 +422,7 @@ function patchRows(){
     // 所以我们用 ACC 数组的下标来定位（顺序一致）
     var a = ACC[i];
     if(!a) continue;
-    var s = SITE[a.uin] || {};
+    var s = (SITE||{})[a.uin] || {};
     // 1) 微信支付格
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
@@ -519,7 +519,7 @@ function paintAlert(){
   var risks = [], bigs = [];
   for (var i = 0; i < ACC.length; i++) {
     var a = ACC[i];
-    var s = SITE[a.uin] || {};
+    var s = (SITE||{})[a.uin] || {};
     if (s.risk === 1) risks.push(a.nick || a.uin);
     if (bigOf(a) && !isRead(i)) bigs.push(a.nick || a.uin);
   }
@@ -837,7 +837,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       (function(a){
         tradesOf(a).then(function(j){
           if (j && (j.ret === 0 || j.ret === '0')) {
-            SITE[a.uin] = computeSite(a, j.WaterList || []);
+            (SITE||{})[a.uin] = computeSite(a, j.WaterList || []);
             try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
             patchRows();
           }
