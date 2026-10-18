@@ -145,6 +145,19 @@ for (const a of cks) {
   await new Promise(r => setTimeout(r, 1200));   // 账号之间拉开间隔，避开腾讯风控
 }
 
+// 写一份刷新状态，手机页面用它提示"数据多久没更新 / 哪些号失败"
+const errList = Object.values(out.accounts).filter(x => x && x.err).map(x => (x.uin || '') + ':' + x.err);
+const status = {
+  ts: now,
+  iso: new Date().toISOString(),
+  ok: errList.length === 0,
+  accounts: Object.keys(out.accounts).length,
+  errCount: errList.length,
+  error: errList.slice(0, 3).join(' | ')
+};
+fs.writeFileSync(path.join(process.cwd(), 'status.json'), JSON.stringify(status), 'utf8');
+console.log('status.json ok=' + status.ok + ' errCount=' + status.errCount);
+
 const p = path.join(process.cwd(), 'data.json');
 // ★ 加密：公网上 data.json 只是一串乱码，只有持有钥匙的手机能解开
 const keyHex = (process.env.QBKEY || '').trim();

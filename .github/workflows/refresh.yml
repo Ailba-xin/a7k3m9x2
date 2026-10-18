@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name "qb-bot"
           git config user.email "qb-bot@users.noreply.github.com"
-          git add data.json
+          git add data.json status.json
           if git diff --cached --quiet; then
             echo "没有变化，跳过提交"
           else

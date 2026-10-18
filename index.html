@@ -65,6 +65,8 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
   <button class="hdbtn" onclick="openSettings()">设置</button>
 </header>
 
+<div id="stale" style="display:none;margin:8px 14px 0;padding:9px 12px;border-radius:10px;font-size:12.5px;line-height:1.5;background:#fff4d6;border:1px solid #f0d28a;color:#8a5a00"></div>
+
 <div class="sum">
   <div><span class="k">Q币合计</span><b id="sqb">—</b></div>
   <div><span class="k">Q点合计</span><b id="sqd">—</b></div>
@@ -98,10 +100,29 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 
     <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
     <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
+    <p style="margin-top:14px">备份与迁移</p>
+    <div class="btns">
+      <button class="no" onclick="openBackup()">导出备份</button>
+      <button class="no" onclick="openRestore()">恢复备份</button>
+    </div>
+    <p style="margin-top:6px;font-size:12px;color:#8a96a6">备份包含 CK 和密钥，只发给自己。页面版本 v1.2.13</p>
     <div class="btns">
       <button class="no" onclick="clearAllChanges()">清除变化记录</button>
       <button class="ok" onclick="closeSettings()">完成</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="bakBox" hidden>
+  <div class="sheet">
+    <h2 id="bakTitle">导出备份</h2>
+    <p id="bakTip" style="font-size:13px;color:#6b7686">复制下面这串内容保存好；换手机时粘贴回来即可恢复。</p>
+    <textarea id="bakText" style="width:100%;height:190px;border:1px solid var(--line);border-radius:10px;padding:9px;font:12px ui-monospace,monospace"></textarea>
+    <div class="btns">
+      <button class="no" onclick="closeBackup()">关闭</button>
+      <button class="ok" id="bakBtn" onclick="backupAction()">复制</button>
+    </div>
+    <p id="bakErr" style="font-size:13px;color:#c0392b;margin:8px 0 0;text-align:center;min-height:18px"></p>
   </div>
 </div>
 
@@ -494,7 +515,6 @@ function patchRows(){
 }
 loadSite();
 setInterval(function(){ loadSite(); }, 10*60*1000);
-setInterval(patchRows, 1500);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadSite(); });
 </script><style>
 /* A版同款：明细默认折叠，点一下展开；异常提示条；回顶部 */
@@ -619,7 +639,6 @@ window.addEventListener('scroll', function(){ patchRows2(); }, { passive: true }
 })();
 
 /* 定时合并进主渲染（原来的 patchRows 也在跑） */
-setInterval(function(){ patchRows2(); }, 1300);
 window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
 </script><style>
 #diag{margin:8px 14px 0;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.55;display:none}
@@ -920,6 +939,81 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
 
   window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
   setInterval(relayAll, 10 * 60 * 1000);
+})();
+
+/* ---------- 备份 / 恢复 ---------- */
+var bakMode='export';
+function openBackup(){
+  bakMode='export';
+  document.getElementById('bakTitle').textContent='导出备份';
+  document.getElementById('bakTip').textContent='复制下面这串内容保存好（微信收藏/备忘录）；换手机或清缓存后粘贴回来即可恢复。';
+  document.getElementById('bakBtn').textContent='复制';
+  var err=document.getElementById('bakErr'); err.textContent=''; err.style.color='#16873f';
+  var data={v:1,ts:Date.now(),accounts:ACC,key:(ls('qbstd_key_v1','')||''),iv:getIV(),hide:HIDE};
+  var t=document.getElementById('bakText'); t.value=JSON.stringify(data);
+  document.getElementById('bakBox').hidden=false;
+  setTimeout(function(){ t.focus(); t.select(); },50);
+}
+function openRestore(){
+  bakMode='restore';
+  document.getElementById('bakTitle').textContent='恢复备份';
+  document.getElementById('bakTip').textContent='把之前导出的备份内容粘贴到下面，点「恢复」。';
+  document.getElementById('bakBtn').textContent='恢复';
+  var err=document.getElementById('bakErr'); err.textContent=''; err.style.color='#c0392b';
+  document.getElementById('bakText').value='';
+  document.getElementById('bakBox').hidden=false;
+  setTimeout(function(){ document.getElementById('bakText').focus(); },50);
+}
+function closeBackup(){ document.getElementById('bakBox').hidden=true; }
+function backupAction(){ if(bakMode==='export') copyBackup(); else doRestore(); }
+function copyBackup(){
+  var t=document.getElementById('bakText'), err=document.getElementById('bakErr');
+  t.focus(); t.select();
+  function done(good,msg){ err.style.color=good?'#16873f':'#c0392b'; err.textContent=msg; }
+  var ok=false;
+  try{ ok=document.execCommand('copy'); }catch(e){}
+  if(ok){ done(true,'已复制，去微信收藏/备忘录粘贴保存'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t.value).then(function(){ done(true,'已复制，去微信收藏/备忘录粘贴保存'); },function(){ done(false,'复制失败，请长按输入框全选复制'); });
+  } else done(false,'请长按输入框全选复制');
+}
+function doRestore(){
+  var err=document.getElementById('bakErr');
+  try{
+    var d=JSON.parse(document.getElementById('bakText').value||'');
+    if(!d || !Array.isArray(d.accounts)) throw new Error('格式不对');
+    var list=d.accounts.filter(function(a){ return a && a.openid && a.openkey; });
+    if(!list.length) throw new Error('备份里没有有效账号');
+    ACC=list; saveAll();
+    if(d.key && String(d.key).length===64) lss('qbstd_key_v1',String(d.key));
+    if(typeof d.hide==='boolean'){ HIDE=d.hide; lss(KEY_HIDE,HIDE); document.getElementById('uinbtn').textContent=HIDE?'显示QQ号':'隐藏QQ号'; }
+    if(typeof d.iv==='number' && d.iv>=1 && d.iv<=60){ IV=d.iv; lss(KEY_IV,IV); startTimer(); }
+    err.style.color='#16873f'; err.textContent='恢复成功，正在刷新…';
+    setTimeout(function(){ closeBackup(); paint(); if(typeof refreshAll==='function') refreshAll(); },600);
+  }catch(e){ err.style.color='#c0392b'; err.textContent='恢复失败：'+e.message; }
+}
+
+/* ---------- 后台数据状态 / iOS 提示 ---------- */
+function checkStatus(){
+  var el=document.getElementById('stale'); if(!el) return;
+  if(window.navigator.standalone===true){
+    el.textContent='ℹ️ iOS 主屏幕模式可能丢数据：建议用 Safari 书签打开，并在「设置」里定期导出备份。';
+    el.style.display='block'; return;
+  }
+  fetch('status.json?t='+Date.now(),{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(s){
+    var age=Math.floor(Date.now()/1000)-(Number(s.ts)||0);
+    if(age>5400){ el.textContent='⚠ 后台数据已 '+(age>=3600?Math.floor(age/3600)+' 小时':Math.floor(age/60)+' 分钟')+' 未更新，可能是 CK 过期'; el.style.display='block'; }
+    else if(s.ok===false){ el.textContent='⚠ 最近一次后台刷新：'+(s.errCount||0)+' 个账号失败'+(s.error?('（'+s.error+'）'):''); el.style.display='block'; }
+    else { el.style.display='none'; }
+  }).catch(function(){});
+}
+
+/* ---------- 合并定时器：2 秒一次，页面隐藏时暂停 ---------- */
+(function(){
+  function tick(){ if(document.hidden) return; try{ patchRows(); }catch(e){} try{ patchRows2(); }catch(e){} }
+  setInterval(tick, 2000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) tick(); });
+  window.addEventListener('load', function(){ setTimeout(function(){ tick(); checkStatus(); }, 1000); });
 })();
 </script></body>
 </html>
