@@ -638,6 +638,8 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
   setTimeout(function(){
     try {
       var ts = document.getElementById('ts');
+      // ★ 没有账号/没有钥匙 = 正常闲置状态，不报错（2026-10-18）
+      if (!hasDataKey() || !ACC || ACC.length === 0) return;
       if (ts && ts.textContent.indexOf('读取') >= 0) {
         showErr('页面卡在"正在读取"（可能是浏览器太旧/网络被拦）', '当前 UA: ' + (navigator.userAgent || '').slice(0, 120));
       }
