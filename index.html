@@ -814,7 +814,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       + '&PageSize=50&SystemType=portal'
       + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
       + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
-    // 单个请求 8 秒超时，避免一直挂着不走
+    // 单次 20 秒超时（手机走 Cloudflare 中转实测 8 秒左右，8 秒太短）
     function once(ms){
       return new Promise(function(resolve){
         var done=false, ctl=null;
@@ -830,12 +830,12 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
           .catch(function(){ if(done) return; done=true; clearTimeout(timer); resolve(null); });
       });
     }
-    // 失败自动重试 2 次（共 3 次），每次间隔 2.5 秒
+    // 失败再试 1 次（共 2 次），间隔 2 秒
     function attempt(n){
-      return once(8000).then(function(j){
+      return once(20000).then(function(j){
         if (j) return j;
-        if (n >= 2) return null;
-        return new Promise(function(r){ setTimeout(r, 2500); }).then(function(){ return attempt(n+1); });
+        if (n >= 1) return null;
+        return new Promise(function(r){ setTimeout(r, 2000); }).then(function(){ return attempt(n+1); });
       });
     }
     return attempt(0);
@@ -860,12 +860,16 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     };
   }
 
-  function relayAll(){
-    if (!ACC || !ACC.length) { setTimeout(relayAll, 4000); return; }
-    for (var i = 0; i < ACC.length; i++) {
+  // 队列：最多 4 个并发，避免 17 个号同时打中转导致全部超时
+  var relayQueue = [], relayActive = 0, RELAY_MAX = 4;
+  function relayPump(){
+    while (relayActive < RELAY_MAX && relayQueue.length) {
+      var a = relayQueue.shift();
+      relayActive++;
       (function(a){
-        var cur=(SITE||{})[a.uin]||{uin:a.uin};
-        cur.pending=1; (SITE||{})[a.uin]=cur;
+        var cur = (SITE||{})[a.uin] || { uin: a.uin };
+        cur.pending = 1; (SITE||{})[a.uin] = cur;
+        patchRows();
         tradesOf(a).then(function(j){
           if (j && (j.ret === 0 || j.ret === '0')) {
             (SITE||{})[a.uin] = computeSite(a, j.WaterList || []);
@@ -876,38 +880,44 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
           }
           try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
           patchRows();
+          relayActive--; relayPump();
         });
-      })(ACC[i]);
+      })(a);
     }
   }
+  function relayAll(){
+    if (!ACC || !ACC.length) { setTimeout(relayAll, 4000); return; }
+    if (relayActive > 0 || relayQueue.length) return;
+    relayQueue = ACC.slice();
+    relayPump();
+  }
+
   // 失败账号每 45 秒自动重试（最多 5 轮），也可以点「重试」立即重来
   var errRounds = 0;
   setInterval(function(){
     if (!ACC || !ACC.length || errRounds >= 5) return;
+    if (relayActive > 0 || relayQueue.length) return;
     var need = [];
     for (var i=0;i<ACC.length;i++){ var s=(SITE||{})[ACC[i].uin]; if (s && s.err) need.push(ACC[i]); }
     if (!need.length) { errRounds = 0; return; }
     errRounds++;
-    for (var k=0;k<need.length;k++) (function(a){
-      tradesOf(a).then(function(j){
-        if (j && (j.ret===0||j.ret==='0')) { (SITE||{})[a.uin]=computeSite(a, j.WaterList||[]); }
-        try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
-        patchRows();
-      });
-    })(need[k]);
+    relayQueue = need.slice();
+    relayPump();
   }, 45000);
+
   window.retryTrades = function(uin){
     var a=null; for (var i=0;i<ACC.length;i++) if (String(ACC[i].uin)===String(uin)) { a=ACC[i]; break; }
     if (!a) return;
-    (SITE||{})[uin]={ uin: uin, pending: 1 };
+    (SITE||{})[uin] = { uin: uin, pending: 1 };
     patchRows();
     tradesOf(a).then(function(j){
-      if (j && (j.ret===0||j.ret==='0')) (SITE||{})[uin]=computeSite(a, j.WaterList||[]);
+      if (j && (j.ret===0||j.ret==='0')) { (SITE||{})[uin]=computeSite(a, j.WaterList||[]); window.__siteLoaded = true; }
       else (SITE||{})[uin]={ uin: uin, err: 1 };
       try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
       patchRows();
     });
   };
+
   window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
   setInterval(relayAll, 10 * 60 * 1000);
 })();
