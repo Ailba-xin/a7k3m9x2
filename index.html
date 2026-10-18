@@ -40,6 +40,8 @@ ul#list li{background:var(--card);border-radius:12px;margin-bottom:8px;box-shado
 .risk{background:#ffecec;color:var(--red);border:1px solid #f6c9c9;font-weight:700}
 .det{padding:0 14px 12px;font-size:12.5px;color:var(--gray);display:flex;gap:14px;flex-wrap:wrap}
 .det .v{color:#1d2733;font-weight:600}
+.det-bal{font-size:12.5px;color:#0f7a37;font-weight:600;padding:2px 0 6px}
+.det-bal b{font-size:14px}
 footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 .modal{position:fixed;inset:0;background:rgba(16,24,34,.45);display:flex;align-items:flex-end;z-index:99}
 .modal[hidden]{display:none}
@@ -427,7 +429,7 @@ function patchRows(){
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
     if(s.err){ wxs.textContent = '查询失败'; wxs.className='wxs warn'; }
-    else if(typeof s.wx7 === 'number'){ wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); }
+    else if(typeof s.wx7 === 'number'){ if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent='无记录'; wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
     else { wxs.textContent=''; }
     // 2) 风险标签
     var tag = nameEl.querySelector('.tag-risk');
@@ -442,6 +444,15 @@ function patchRows(){
       if(det.getAttribute('data-k') !== key){
         det.setAttribute('data-k', key);
         var h = '';
+        // ★ 2026-10-18 明细显示余额 + 比上次的变动
+        if (a && a.qb !== undefined && a.qb !== null) {
+          var dtxt = '';
+          if (a.delta !== null && a.delta !== undefined && Math.abs(a.delta) >= 0.01) {
+            dtxt = ' <span style="color:' + (a.delta > 0 ? '#0f7a37' : '#c0392b') + ';font-weight:700">'
+                 + (a.delta > 0 ? '▲ +' : '▼ ') + Number(a.delta).toFixed(2) + '</span>';
+          }
+          h += '<div class="det-bal">余额：<b>' + Number(a.qb).toFixed(2) + '</b> Q币' + dtxt + '</div>';
+        }
         if(s.risk===1) h += '<div class="det-risk">⚠ '+ (s.why||'这个号已经充不进微信支付了') + (s.retry? '<br>建议 '+s.retry+' 再试一笔':'') +'</div>';
         var wx = s.wx || [];
         if(wx.length){
