@@ -437,7 +437,8 @@ function patchRows(){
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
     if(s.err){ wxs.innerHTML = '明细失败 · <u>重试</u>'; wxs.className='wxs warn'; wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); }; }
-    else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = (window.__siteLoaded ? '无记录' : '读取中…'); wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
+    else if(s.pending){ wxs.textContent='读取中…'; wxs.className='wxs'; wxs.style.cursor=''; wxs.onclick=null; }
+    else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = '无记录'; wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
     else { wxs.textContent=''; }
     // 2) 风险标签
     var tag = nameEl.querySelector('.tag-risk');
@@ -863,9 +864,12 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     if (!ACC || !ACC.length) { setTimeout(relayAll, 4000); return; }
     for (var i = 0; i < ACC.length; i++) {
       (function(a){
+        var cur=(SITE||{})[a.uin]||{uin:a.uin};
+        cur.pending=1; (SITE||{})[a.uin]=cur;
         tradesOf(a).then(function(j){
           if (j && (j.ret === 0 || j.ret === '0')) {
             (SITE||{})[a.uin] = computeSite(a, j.WaterList || []);
+            window.__siteLoaded = true;
           } else {
             var prev = (SITE||{})[a.uin];
             if (!prev || !prev.trades || !prev.trades.length) (SITE||{})[a.uin] = { uin: a.uin, err: 1 };
@@ -895,7 +899,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
   window.retryTrades = function(uin){
     var a=null; for (var i=0;i<ACC.length;i++) if (String(ACC[i].uin)===String(uin)) { a=ACC[i]; break; }
     if (!a) return;
-    if (SITE && SITE[uin]) delete SITE[uin];
+    (SITE||{})[uin]={ uin: uin, pending: 1 };
     patchRows();
     tradesOf(a).then(function(j){
       if (j && (j.ret===0||j.ret==='0')) (SITE||{})[uin]=computeSite(a, j.WaterList||[]);
