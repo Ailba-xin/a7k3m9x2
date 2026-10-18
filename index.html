@@ -436,8 +436,8 @@ function patchRows(){
     // 1) 微信支付格
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
-    if(s.err){ wxs.textContent = '查询失败'; wxs.className='wxs warn'; }
-    else if(typeof s.wx7 === 'number'){ if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = (window.__siteLoaded ? '无记录' : '读取中…'); wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
+    if(s.err){ wxs.innerHTML = '明细失败 · <u>重试</u>'; wxs.className='wxs warn'; wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); }; }
+    else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = (window.__siteLoaded ? '无记录' : '读取中…'); wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
     else { wxs.textContent=''; }
     // 2) 风险标签
     var tag = nameEl.querySelector('.tag-risk');
@@ -813,22 +813,31 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       + '&PageSize=50&SystemType=portal'
       + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
       + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
-    // 依次尝试每个中转（Cloudflare 优先，失败自动换电脑中转）
-    var idx = 0;
-    function tryNext() {
-      if (idx >= RELAYS.length) return Promise.resolve(null);
-      var base = RELAYS[idx++];
-      return fetch(base + encodeURIComponent(target), { cache: 'no-store' })
-        .then(function(r){ return r.text(); })
-        .then(function(txt){
-          var j = null;
-          try { j = JSON.parse(txt); } catch(e){}
-          if (j && (j.ret === 0 || j.ret === '0' || j.ret === 1018 || j.ret === 1001)) return j;
-          return tryNext();
-        })
-        .catch(function(){ return tryNext(); });
+    // 单个请求 8 秒超时，避免一直挂着不走
+    function once(ms){
+      return new Promise(function(resolve){
+        var done=false, ctl=null;
+        try { ctl = new AbortController(); } catch(e){}
+        var timer=setTimeout(function(){ if(done) return; done=true; try{ if(ctl) ctl.abort(); }catch(e){} resolve(null); }, ms);
+        fetch(RELAY + encodeURIComponent(target), { cache:'no-store', signal: ctl?ctl.signal:undefined })
+          .then(function(r){ return r.text(); })
+          .then(function(txt){
+            if(done) return; done=true; clearTimeout(timer);
+            var j=null; try { j=JSON.parse(txt); } catch(e){}
+            resolve((j && (j.ret===0||j.ret==='0'||j.ret===1018||j.ret===1001)) ? j : null);
+          })
+          .catch(function(){ if(done) return; done=true; clearTimeout(timer); resolve(null); });
+      });
     }
-    return tryNext();
+    // 失败自动重试 2 次（共 3 次），每次间隔 2.5 秒
+    function attempt(n){
+      return once(8000).then(function(j){
+        if (j) return j;
+        if (n >= 2) return null;
+        return new Promise(function(r){ setTimeout(r, 2500); }).then(function(){ return attempt(n+1); });
+      });
+    }
+    return attempt(0);
   }
 
   function computeSite(a, list){
@@ -857,13 +866,44 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
         tradesOf(a).then(function(j){
           if (j && (j.ret === 0 || j.ret === '0')) {
             (SITE||{})[a.uin] = computeSite(a, j.WaterList || []);
-            try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
-            patchRows();
+          } else {
+            var prev = (SITE||{})[a.uin];
+            if (!prev || !prev.trades || !prev.trades.length) (SITE||{})[a.uin] = { uin: a.uin, err: 1 };
           }
+          try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
+          patchRows();
         });
       })(ACC[i]);
     }
   }
+  // 失败账号每 45 秒自动重试（最多 5 轮），也可以点「重试」立即重来
+  var errRounds = 0;
+  setInterval(function(){
+    if (!ACC || !ACC.length || errRounds >= 5) return;
+    var need = [];
+    for (var i=0;i<ACC.length;i++){ var s=(SITE||{})[ACC[i].uin]; if (s && s.err) need.push(ACC[i]); }
+    if (!need.length) { errRounds = 0; return; }
+    errRounds++;
+    for (var k=0;k<need.length;k++) (function(a){
+      tradesOf(a).then(function(j){
+        if (j && (j.ret===0||j.ret==='0')) { (SITE||{})[a.uin]=computeSite(a, j.WaterList||[]); }
+        try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
+        patchRows();
+      });
+    })(need[k]);
+  }, 45000);
+  window.retryTrades = function(uin){
+    var a=null; for (var i=0;i<ACC.length;i++) if (String(ACC[i].uin)===String(uin)) { a=ACC[i]; break; }
+    if (!a) return;
+    if (SITE && SITE[uin]) delete SITE[uin];
+    patchRows();
+    tradesOf(a).then(function(j){
+      if (j && (j.ret===0||j.ret==='0')) (SITE||{})[uin]=computeSite(a, j.WaterList||[]);
+      else (SITE||{})[uin]={ uin: uin, err: 1 };
+      try { lss('qbstd_site_cache_v1', { ts: Date.now(), accounts: SITE }); } catch(e){}
+      patchRows();
+    });
+  };
   window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
   setInterval(relayAll, 10 * 60 * 1000);
 })();
