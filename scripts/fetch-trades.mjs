@@ -146,6 +146,18 @@ for (const a of cks) {
 }
 
 const p = path.join(process.cwd(), 'data.json');
-// 直接写明文 data.json（不加密，页面无需任何钥匙）
-fs.writeFileSync(p, JSON.stringify(out), 'utf8');
-console.log('已写入 ' + p + '，账号数 ' + Object.keys(out.accounts).length);
+// ★ 加密：公网上 data.json 只是一串乱码，只有持有钥匙的手机能解开
+const keyHex = (process.env.QBKEY || '').trim();
+if (keyHex.length === 64) {
+  const key = Buffer.from(keyHex, 'hex');
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(JSON.stringify(out), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const payload = { v: 1, iv: iv.toString('base64'), ct: Buffer.concat([enc, tag]).toString('base64') };
+  fs.writeFileSync(p, JSON.stringify(payload), 'utf8');
+  console.log('已写入加密数据 ' + p + '，账号数 ' + Object.keys(out.accounts).length);
+} else {
+  fs.writeFileSync(p, JSON.stringify(out), 'utf8');
+  console.log('⚠ 没有 QBKEY，写入明文（不安全）');
+}
