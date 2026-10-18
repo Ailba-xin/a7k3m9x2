@@ -401,13 +401,21 @@ function hasDataKey() {
       if (!j) return;
       if (j.v === 1 && j.ct) {
         return decryptPayload(j).then(function(plain){
-          if (plain && plain.accounts) { SITE = plain.accounts; patchRows(); }
+          if (plain && plain.accounts) { SITE = plain.accounts; window.__siteLoaded = true; patchRows(); }
           else { SITE = {}; patchRows(); }
         });
       }
-      if (j.accounts) { SITE = j.accounts; patchRows(); }
+      if (j.accounts) { SITE = j.accounts; window.__siteLoaded = true; patchRows(); }
     })
-    .catch(function(){});
+    .catch(function(){
+      // ★ 2026-10-18 加载失败自动重试（最多 2 次），避免偶发网络波动导致数据不显示
+      if (!window.__siteRetry) window.__siteRetry = 0;
+      if (window.__siteRetry < 2) {
+        window.__siteRetry++;
+        setTimeout(function(){ try { loadSite(); } catch (e) { } }, 2500);
+      }
+    })
+    .then(function(){ window.__siteRetry = 0; });
 }
 function uinOf(li){
   var el = li.querySelector('.uin');
@@ -429,7 +437,7 @@ function patchRows(){
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
     if(s.err){ wxs.textContent = '查询失败'; wxs.className='wxs warn'; }
-    else if(typeof s.wx7 === 'number'){ if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent='无记录'; wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
+    else if(typeof s.wx7 === 'number'){ if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = (window.__siteLoaded ? '无记录' : '读取中…'); wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
     else { wxs.textContent=''; }
     // 2) 风险标签
     var tag = nameEl.querySelector('.tag-risk');
