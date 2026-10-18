@@ -772,7 +772,12 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
 </script><script>
 /* ---------- 电脑中转（Tailscale 公网）：朋友的账号用它拿微信支付数据 ---------- */
 (function(){
-  var RELAY = 'https://qb-pc.tail22c22b.ts.net/api/relay?u=';
+  // ★ 2026-10-18 优先用 Cloudflare 中转（电脑关机也能用），电脑中转作为备用
+  var RELAYS = [
+    'https://qbmobile.icu/api/relay?u=',
+    'https://qb-pc.tail22c22b.ts.net/api/relay?u='
+  ];
+  var RELAY = RELAYS[0];
   var DAY = 86400;
   var lastRun = 0;
 
@@ -783,10 +788,22 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       + '&PageSize=50&SystemType=portal'
       + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
       + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
-    return fetch(RELAY + encodeURIComponent(target), { cache: 'no-store' })
-      .then(function(r){ return r.text(); })
-      .then(function(txt){ try { return JSON.parse(txt); } catch(e){ return null; } })
-      .catch(function(){ return null; });
+    // 依次尝试每个中转（Cloudflare 优先，失败自动换电脑中转）
+    var idx = 0;
+    function tryNext() {
+      if (idx >= RELAYS.length) return Promise.resolve(null);
+      var base = RELAYS[idx++];
+      return fetch(base + encodeURIComponent(target), { cache: 'no-store' })
+        .then(function(r){ return r.text(); })
+        .then(function(txt){
+          var j = null;
+          try { j = JSON.parse(txt); } catch(e){}
+          if (j && (j.ret === 0 || j.ret === '0' || j.ret === 1018 || j.ret === 1001)) return j;
+          return tryNext();
+        })
+        .catch(function(){ return tryNext(); });
+    }
+    return tryNext();
   }
 
   function computeSite(a, list){
