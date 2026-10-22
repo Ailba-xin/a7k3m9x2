@@ -486,6 +486,14 @@ function hasDataKey() {
     try { return !!(localStorage.getItem('qbstd_key_v1') || '').trim(); } catch (e) { return false; }
   }
   function loadSite(){
+  // ★ 2026-10-22 秒开：先用上次缓存立刻画出来（6 小时内有效），再读 data.json 更新
+  try{
+    var _cache = ls('qbstd_site_cache_v1', null);
+    if (_cache && _cache.accounts && (Date.now() - (_cache.ts||0) < 6*3600*1000)) {
+      SITE = _cache.accounts;
+      try{ patchRows(); }catch(e){}
+    }
+  }catch(e){}
     // ★ 没有钥匙 = 别人的设备 → 不请求 data.json（保护主人数据）
     if (!hasDataKey()) { SITE = {}; try { localStorage.removeItem('qbstd_site_cache_v1'); } catch (e) { } return; }
     return fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
@@ -494,11 +502,20 @@ function hasDataKey() {
       if (!j) return;
       if (j.v === 1 && j.ct) {
         return decryptPayload(j).then(function(plain){
-          if (plain && plain.accounts) { SITE = plain.accounts; window.__siteLoaded = true; patchRows(); }
+          if (plain && plain.accounts) {
+            SITE = plain.accounts; window.__siteLoaded = true;
+            // ★ 用 data.json 里的余额先把账号填上（秒显示余额，不用等腾讯查询）
+            try{ for(var _i=0;_i<ACC.length;_i++){ var _a=ACC[_i]; var _s=SITE[_a.uin]; if(_s && typeof _s.qb==='number' && (_a.qb===undefined||_a.qb===null||_a.qb===0)){ _a.qb=_s.qb; } } }catch(e){}
+            try{ paint(); }catch(e){}
+            patchRows();
+          }
           else { SITE = {}; patchRows(); }
         });
       }
-      if (j.accounts) { SITE = j.accounts; window.__siteLoaded = true; patchRows(); }
+      if (j.accounts) { SITE = j.accounts; window.__siteLoaded = true;
+        try{ for(var _i=0;_i<ACC.length;_i++){ var _a=ACC[_i]; var _s=SITE[_a.uin]; if(_s && typeof _s.qb==='number' && (_a.qb===undefined||_a.qb===null||_a.qb===0)){ _a.qb=_s.qb; } } }catch(e){}
+        try{ paint(); }catch(e){}
+        patchRows(); }
     })
     .catch(function(){
       // ★ 2026-10-18 加载失败自动重试（最多 2 次），避免偶发网络波动导致数据不显示
@@ -996,6 +1013,9 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       var a = relayQueue.shift();
       relayActive++;
       (function(a){
+        // ★ 2026-10-22 data.json 已经有这个号的微信数据 → 直接跳过（不查中转、不覆盖、不会消失）
+        var _have = (SITE||{})[a.uin];
+        if (_have && typeof _have.wx7 === 'number' && !_have.err) { relayActive--; relayPump(); return; }
         var cur = (SITE||{})[a.uin] || { uin: a.uin };
         cur.pending = 1; (SITE||{})[a.uin] = cur;
         patchRows();
