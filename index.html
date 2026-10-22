@@ -243,6 +243,14 @@ function mdhm(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} return
 /* ---------- 渲染 ---------- */
 function paint(){
   var ul=document.getElementById('list');
+  // ★ 2026-10-22 重绘时保留「已展开」的账号（否则自动刷新一跑，明细就自己收起来）
+  var _openU = {};
+  try{
+    var _lis0 = document.querySelectorAll('#list li');
+    for(var _i0=0; _i0<_lis0.length; _i0++){
+      if(_lis0[_i0].classList.contains('open')){ var _a0=ACC[_i0]; if(_a0 && _a0.uin) _openU[_a0.uin]=1; }
+    }
+  }catch(e){}
   var empty=document.getElementById('empty');
   empty.hidden = ACC.length>0;
   var h='', sqb=0, sqd=0;
@@ -250,7 +258,7 @@ function paint(){
     var a=ACC[i];
     if(a.qb!==undefined && a.qb!==null) sqb+=Number(a.qb);
     if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
-    h+='<li><div class="row">';
+    h+='<li'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
     h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
     h+='<div class="uin">'+esc(maskUin(a.uin||''))+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
     h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
