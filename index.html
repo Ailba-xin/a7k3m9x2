@@ -434,7 +434,14 @@ var KEY_QBTIP='qbstd_qbtip_v1';
 function qbTipOn(){ var v=ls(KEY_QBTIP,true); return v!==false && v!=='0'; }
 function setQbTip(v){ lss(KEY_QBTIP,!!v); }
 /* 2026-10-23 复制给 iOS 快捷指令用的账号配置（JSON） */
-function copyShortcutConfig(){
+/* 一键安装快捷指令：建好后把 iCloud 分享链接填到下行的引号里 */
+var IC_SHORTCUT_URL = '';
+function installShortcut(){
+  try{
+    if (!IC_SHORTCUT_URL) { alert('快捷指令还没生成（需要在一台 iPhone 上建一次并分享 iCloud 链接）'); return; }
+    location.href = IC_SHORTCUT_URL;
+  }catch(e){}
+}function copyShortcutConfig(){
   try{
     var arr = [];
     for (var i=0;i<ACC.length;i++){ var a=ACC[i]; if(a && a.openid && a.openkey) arr.push({n:a.nick||'', u:a.uin||'', o:a.openid, k:a.openkey}); }
