@@ -645,8 +645,7 @@ function patchRows(){
           for(var k=0;k<wx.length;k++){
             var r2=wx[k];
             // ★ 2026-10-22 名额已经释放的记录不再显示（只看还有效/即将释放的）
-            if(r2.t + 7*86400 <= Date.now()/1000) continue;
-            if(k >= 12) break;
+            if(k >= 10) break;
             var d2=new Date(r2.t*1000), p2=function(n){return (n<10?'0':'')+n;};
             // ★ 2026-10-22 每条微信记录后面加「7天后可充」= 这笔时间 + 7 天（和电脑版明细一致）
             var _t7 = (r2.t + 7*86400) * 1000;
@@ -656,7 +655,7 @@ function patchRows(){
                + '<span>微信 +'+Number(r2.amt).toFixed(2)+'</span>'
                + '<span style="color:'+(_past7?'#9aa4b1':'#a25b1a')+';font-weight:'+(_past7?'400':'600')+'">'
                + '名额 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes())
-               + (_past7 ? ' 释放（已释放）' : ' 可充')
+               + (_past7 ? '' : ' 可充')
                + '</span></div>';
           }
           h += '</div>';
