@@ -106,6 +106,14 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
     <label style="display:flex;align-items:center;gap:8px;font-size:15px;margin-top:10px">
       <input type="checkbox" id="qbTipChk" onchange="setQbTip(this.checked)" style="width:18px;height:18px"> QB 余额变化提示
     </label>
+    <label id="watchRow" style="display:flex;align-items:center;gap:8px;font-size:15px;margin-top:10px">
+      <input type="checkbox" id="watchChk" onchange="setWatchOn(this.checked)" style="width:18px;height:18px"> 后台监控（锁屏通知）
+    </label>
+    <p id="notifyTip" style="font-size:12px;color:#c0392b;margin:6px 0 0;display:none">⚠ 手机通知权限没开，收不到提醒 → 点下面按钮去打开</p>
+    <div class="btns" style="margin-top:10px">
+      <button class="no" onclick="testLockNotify()">测试锁屏通知</button>
+      <button class="no" onclick="openNotifySetting()">打开通知设置</button>
+    </div>
 
     <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
     <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
@@ -361,6 +369,9 @@ function openSettings(){
   document.getElementById('ivSel').value=String(IV);
   document.getElementById('hideChk').checked=HIDE;
   try{ var qc=document.getElementById('qbTipChk'); if(qc) qc.checked=qbTipOn(); }catch(e){}
+  try{ var wc=document.getElementById('watchChk'); if(wc){ wc.checked=!!(window.AndroidBridge && AndroidBridge.getWatch && AndroidBridge.getWatch()); } }catch(e){}
+  try{ var wr=document.getElementById('watchRow'); if(wr) wr.style.display = window.AndroidBridge ? 'flex' : 'none'; }catch(e){}
+  setTimeout(refreshNotifyTip, 200);
   document.getElementById('setCnt').textContent=ACC.length;
 
   var last='—'; for(var i=0;i<ACC.length;i++){ if(ACC[i].tryAt){ last=ACC[i].tryAt; break; } }
@@ -378,6 +389,30 @@ function closeSettings(){
 var KEY_QBTIP='qbstd_qbtip_v1';
 function qbTipOn(){ var v=ls(KEY_QBTIP,true); return v!==false && v!=='0'; }
 function setQbTip(v){ lss(KEY_QBTIP,!!v); }
+/* 2026-10-22 安卓后台监控（锁屏通知）*/
+function setWatchOn(v){
+  try{
+    if(!window.AndroidBridge){ alert('网页版没有锁屏通知，请用安卓 App'); return; }
+    if(v){ AndroidBridge.setWatch(true); AndroidBridge.requestNotifyPermission(); }
+    else { AndroidBridge.setWatch(false); }
+    setTimeout(refreshNotifyTip, 900);
+  }catch(e){}
+}
+function refreshNotifyTip(){
+  try{
+    var tip=document.getElementById('notifyTip'); if(!tip) return;
+    var ok = !window.AndroidBridge ? false : !!AndroidBridge.notifyEnabled();
+    tip.style.display = ok ? 'none' : 'block';
+  }catch(e){}
+}
+function openNotifySetting(){ try{ if(window.AndroidBridge) AndroidBridge.openNotifySettings(); }catch(e){} }
+function testLockNotify(){
+  try{
+    if(!window.AndroidBridge){ alert('网页版没有锁屏通知，请用安卓 App'); return; }
+    AndroidBridge.requestNotifyPermission();
+    setTimeout(function(){ try{ AndroidBridge.testNotify(); }catch(e){} }, 700);
+  }catch(e){}
+}
 function showQbToast(nick, oldQb, newQb, delta){
   if(!qbTipOn()) return;
   try{
