@@ -1194,7 +1194,7 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
 
   window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
   // 2026-10-22：后台刷新 10 → 15 分钟（少一点「一直在刷新」的观感）
-  setInterval(relayAll, 15 * 60 * 1000);
+  setInterval(relayAll, 5 * 60 * 1000);   // 网页版打开时每 5 分钟自动更新
 })();
 
 /* ---------- 备份 / 恢复 ---------- */
