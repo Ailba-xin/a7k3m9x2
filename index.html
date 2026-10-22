@@ -117,6 +117,12 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 
     <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
     <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
+    <p style="margin-top:14px">想要「关掉也能后台刷新 + 锁屏通知」</p>
+    <p style="font-size:12px;color:#8a96a6;margin:2px 0 6px">网页版做不到（浏览器限制）。安卓请下载 App；iPhone 用下面第 ③ 步的快捷指令。</p>
+    <div class="btns">
+      <button class="ok" onclick="dlApp()">下载安卓 App</button>
+    </div>
+
     <p style="margin-top:14px">iPhone 后台通知（快捷指令）</p>
     <p style="font-size:12px;color:#8a96a6;margin:2px 0 6px">装一次快捷指令 → 每小时自动查 → 有变化锁屏弹通知（数据只在你手机）</p>
     <div class="btns">
@@ -469,9 +475,10 @@ function saveDataKey(){
   }catch(e){}
 }
 /* 2026-10-22 安卓后台监控（锁屏通知）*/
+function dlApp(){ try{ location.href='qbpanel.apk'; }catch(e){} }
 function setWatchOn(v){
   try{
-    if(!window.AndroidBridge){ alert('网页版没有锁屏通知，请用安卓 App'); return; }
+    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n安卓请点上面「下载安卓 App」（装好后关掉也会后台更新 + 锁屏通知）\niPhone 用「快捷指令」每小时后台查 + 通知'); return; }
     if(v){ AndroidBridge.setWatch(true); AndroidBridge.requestNotifyPermission(); }
     else { AndroidBridge.setWatch(false); }
     setTimeout(refreshNotifyTip, 900);
@@ -487,7 +494,7 @@ function refreshNotifyTip(){
 function openNotifySetting(){ try{ if(window.AndroidBridge) AndroidBridge.openNotifySettings(); }catch(e){} }
 function testLockNotify(){
   try{
-    if(!window.AndroidBridge){ alert('网页版没有锁屏通知，请用安卓 App'); return; }
+    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n安卓请点上面「下载安卓 App」（装好后关掉也会后台更新 + 锁屏通知）\niPhone 用「快捷指令」每小时后台查 + 通知'); return; }
     AndroidBridge.requestNotifyPermission();
     setTimeout(function(){ try{ AndroidBridge.testNotify(); }catch(e){} }, 700);
   }catch(e){}
