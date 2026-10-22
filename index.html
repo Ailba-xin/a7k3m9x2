@@ -572,7 +572,15 @@ function patchRows(){
           h += '<div class="det-list">';
           for(var k=0;k<Math.min(wx.length,6);k++){
             var r2=wx[k], d2=new Date(r2.t*1000), p2=function(n){return (n<10?'0':'')+n;};
-            h += '<div class="det-row wx"><span class="t">'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes())+'</span><span>微信 +'+Number(r2.amt).toFixed(2)+'</span></div>';
+            // ★ 2026-10-22 每条微信记录后面加「7天后可充」= 这笔时间 + 7 天（和电脑版明细一致）
+            var _t7 = (r2.t + 7*86400) * 1000;
+            var _d7 = new Date(_t7);
+            var _past7 = _t7 <= Date.now();
+            h += '<div class="det-row wx"><span class="t">'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes())+'</span>'
+               + '<span>微信 +'+Number(r2.amt).toFixed(2)+'</span>'
+               + '<span style="color:'+(_past7?'#16873f':'#a25b1a')+';font-weight:600">'
+               + (_past7 ? '已可充' : '7天后可充 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes()))
+               + '</span></div>';
           }
           h += '</div>';
         }
