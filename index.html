@@ -628,7 +628,7 @@ document.addEventListener('click', function (ev) {
   b.onclick = function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); };
   document.body.appendChild(b);
 })();
-window.addEventListener('scroll', function(){ patchRows2(); }, { passive: true });
+/* 2026-10-22 性能：滚动时不再重绘（卡顿元凶已移除） */
 
 /* 异常提示条位置：插在合计卡片后面 */
 (function(){
@@ -938,7 +938,8 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
   };
 
   window.addEventListener('load', function(){ setTimeout(relayAll, 3000); });
-  setInterval(relayAll, 10 * 60 * 1000);
+  // 2026-10-22：后台刷新 10 → 15 分钟（少一点「一直在刷新」的观感）
+  setInterval(relayAll, 15 * 60 * 1000);
 })();
 
 /* ---------- 备份 / 恢复 ---------- */
@@ -1010,8 +1011,21 @@ function checkStatus(){
 
 /* ---------- 合并定时器：2 秒一次，页面隐藏时暂停 ---------- */
 (function(){
-  function tick(){ if(document.hidden) return; try{ patchRows(); }catch(e){} try{ patchRows2(); }catch(e){} }
-  setInterval(tick, 2000);
+  // 2026-10-22 性能：5 秒一次；滑动/触摸中跳过；防重入
+  var _lastScrollAt = 0;
+  window.addEventListener('scroll', function () { _lastScrollAt = Date.now(); }, { passive: true });
+  window.addEventListener('touchmove', function () { _lastScrollAt = Date.now(); }, { passive: true });
+  var _tickBusy = false;
+  function tick(){
+    if (document.hidden) return;
+    if (Date.now() - _lastScrollAt < 700) return;
+    if (_tickBusy) return;
+    _tickBusy = true;
+    try { patchRows(); } catch (e) { }
+    try { patchRows2(); } catch (e) { }
+    setTimeout(function () { _tickBusy = false; }, 250);
+  }
+  setInterval(tick, 5000);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) tick(); });
   window.addEventListener('load', function(){ setTimeout(function(){ tick(); checkStatus(); }, 1000); });
 })();
