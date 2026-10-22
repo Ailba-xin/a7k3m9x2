@@ -845,6 +845,17 @@ document.addEventListener('click', function (ev) {
   if (li.classList.contains('open')) { li.classList.remove('open'); return; }
   li.classList.add('open');
   markRead(idx);
+  // ★ 2026-10-23 点开明细 = 已看过变动 → 清掉这条变动标记（下次再有变动会重新出现）
+  try {
+    var _a = ACC[idx];
+    if (_a && (_a.delta !== undefined && _a.delta !== null)) {
+      delete _a.delta; delete _a.deltaAt;
+      try { saveAll(); } catch(e) { }
+      var _u = li.querySelector('.uin');
+      if (_u) { _u.innerHTML = (typeof maskUin === 'function') ? esc(maskUin(_a.uin || '')) : esc(_a.uin || ''); }
+      try { paintAlert(); } catch(e) { }
+    }
+  } catch(e) { }
   var a = ACC[idx];
   if (a && a.delta) { delete a.delta; delete a.deltaAt; saveAll(); }
   patchRows2();
