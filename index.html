@@ -689,6 +689,7 @@ document.addEventListener('visibilitychange', function(){ if(!document.hidden) l
 #alertbar.show{display:block}
 #alertbar.warn{background:#fff7e6;border:1px solid #f3d9a4;color:#8a5a00}
 #alertbar.danger{background:#fdecea;border:1px solid #f6c9c9;color:#b03024}
+#alertbar{cursor:pointer}
 ul#list li .det{display:none;flex-direction:column}
 ul#list li.open .det{display:flex}
 ul#list li.open .row .arrow{transform:rotate(90deg)}
@@ -738,6 +739,25 @@ function paintAlert(){
   bar.className = 'show ' + (risks.length ? 'danger' : 'warn');
 }
 
+/* 2026-10-23 点横幅：展开所有大额变动/风险账号的明细，然后提示消失 */
+function openBigDetails(){
+  var lis = document.querySelectorAll('#list li');
+  var first = null;
+  for (var i = 0; i < ACC.length && i < lis.length; i++) {
+    var a = ACC[i];
+    var s = (SITE||{})[a.uin] || {};
+    var isBig = !!bigOf(a) && !isRead(i);
+    var isRisk = s.risk === 1;
+    if (isBig || isRisk) {
+      lis[i].classList.add('open');
+      if (isBig) markRead(i);
+      if (!first) first = lis[i];
+    }
+  }
+  paintAlert();
+  try { patchRows(); } catch(e) { }
+  if (first) { try { first.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) { } }
+}
 function patchRows2(){
   paintAlert();
   var lis = document.querySelectorAll('#list li');
@@ -761,7 +781,10 @@ function patchRows2(){
 }
 
 /* 点击整行 → 展开/收起明细；第一次展开算"已读"（大额变动提示消失） */
+/* 点顶部提示条 → 展开明细并消失 */
 document.addEventListener('click', function (ev) {
+  var _bar = ev.target && ev.target.closest ? ev.target.closest('#alertbar') : null;
+  if (_bar) { try { openBigDetails(); } catch(e) { } return; }
   var li = ev.target && ev.target.closest ? ev.target.closest('#list li') : null;
   if (!li) return;
   if (ev.target.closest('a,button')) return;
@@ -778,7 +801,10 @@ document.addEventListener('click', function (ev) {
 
 /* 双击行 → 收起（A版行为） */
 var lastTapT = 0, lastTapI = -1;
+/* 点顶部提示条 → 展开明细并消失 */
 document.addEventListener('click', function (ev) {
+  var _bar = ev.target && ev.target.closest ? ev.target.closest('#alertbar') : null;
+  if (_bar) { try { openBigDetails(); } catch(e) { } return; }
   var li = ev.target && ev.target.closest ? ev.target.closest('#list li') : null;
   if (!li) return;
   var now = Date.now();
