@@ -118,10 +118,15 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
     <p style="margin-top:14px">账号：<b id="setCnt">0</b> 个　最后一次刷新：<b id="setLast">—</b></p>
     <p style="margin-top:4px;font-size:12px">数据只存在这台手机里；电脑关机也能用。</p>
     <p style="margin-top:14px">iPhone 后台通知（快捷指令）</p>
-    <p style="font-size:12px;color:#8a96a6;margin:2px 0 6px">点下面按钮复制你的账号配置，粘贴到快捷指令里即可（数据只在你手机）</p>
+    <p style="font-size:12px;color:#8a96a6;margin:2px 0 6px">装一次快捷指令 → 每小时自动查 → 有变化锁屏弹通知（数据只在你手机）</p>
     <div class="btns">
-      <button class="no" onclick="copyShortcutConfig()">复制快捷指令配置</button>
+      <button class="no" onclick="installShortcut()">① 安装快捷指令</button>
+      <button class="no" onclick="copyShortcutConfig()">② 复制我的配置</button>
     </div>
+    <p style="font-size:12px;color:#6b7686;margin:8px 0 0;line-height:1.6">
+      ③ 安装后打开「快捷指令」App → 底部「自动化」→ 右上 + → 选「时间」→ 每小时 → 选「立即运行」<br>
+      ④ 回到这里点②，把配置粘到快捷指令第一步
+    </p>
     <p id="scTip" style="font-size:12px;margin:6px 0 0;color:#16873f"></p>
 
     <div id="keyWrap">
