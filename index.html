@@ -533,14 +533,15 @@ function patchRows(){
     else if(s.pending){ wxs.textContent='读取中…'; wxs.className='wxs'; wxs.style.cursor=''; wxs.onclick=null; }
     else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = '无记录'; wxs.className='wxs'; } else {
         var _h2 = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元';
-        if(s.nextWxAt){
-          var _nd = new Date(s.nextWxAt*1000);
+        if(s.wx7>=4 && s.releaseAt){
+          var _nd = new Date(s.releaseAt*1000);
           var _p = function(n){ return (n<10?'0':'')+n; };
-          var _left = Math.ceil((s.nextWxAt - Date.now()/1000)/86400);
+          var _left = Math.ceil((s.releaseAt - Date.now()/1000)/86400);
           var _txt = _p(_nd.getMonth()+1)+'-'+_p(_nd.getDate())+' '+_p(_nd.getHours())+':'+_p(_nd.getMinutes());
           if(_left <= 0){ _h2 += ' · <b style="color:#16873f">现在可充</b>'; }
-          else if(s.wx7>=4){ _h2 += ' · 7天后可充 <b>'+_txt+'</b>（还差 '+_left+' 天）'; }
-          else { _h2 += ' · 下次可充 <b>'+_txt+'</b>'; }
+          else { _h2 += ' · 满 4 笔 → 下次可充 <b>'+_txt+'</b>（最早那笔释放，还差 '+_left+' 天）'; }
+        } else if(s.wx7>=0 && s.freeSlots>0){
+          _h2 += ' · <b style="color:#16873f">现在可充</b>（还剩 '+s.freeSlots+' 个名额）';
         }
         wxs.innerHTML = _h2; wxs.className = (s.wx7<4?'wxs warn':'wxs');
       } }
@@ -587,8 +588,8 @@ function patchRows(){
             h += '<div class="det-row wx"><span class="t">'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes())+'</span>'
                + '<span>微信 +'+Number(r2.amt).toFixed(2)+'</span>'
                + '<span style="color:'+(_past7?'#9aa4b1':'#a25b1a')+';font-weight:'+(_past7?'400':'600')+'">'
-               + '7天后可充 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes())
-               + (_past7 ? '（已过）' : '')
+               + '名额 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes())
+               + (_past7 ? ' 释放（已释放）' : ' 可充')
                + '</span></div>';
           }
           h += '</div>';
@@ -970,10 +971,16 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     var wx7 = wx.filter(function(t){ return t.t >= now - 7*DAY; });
     var risk = wx7.length > 4 ? 1 : 0;
     // ★ 2026-10-22 7天后可充：最后一笔微信充值 + 7 天（和电脑版口径一致）
+    // ★ 2026-10-22 名额滚动：每周 4 个名额，每笔占 7 天
+    //   已满 4 笔 → 下一次能充 = 最早那笔(第4笔) + 7 天；不满 4 笔 → 现在就能充
     var lastWx = wx7.length ? wx7[0].t : (wx.length ? wx[0].t : 0);
-    var nextWxAt = lastWx ? lastWx + 7*DAY : 0;
+    var freeSlots = Math.max(0, 4 - wx7.length);
+    var nextWxAt = 0;
+    if (wx7.length >= 4) nextWxAt = wx7[wx7.length-1].t + 7*DAY;
     return {
-      uin: a.uin, wx7: wx7.length, nextWxAt: nextWxAt, lastWx: lastWx, wxFull: (wx7.length>=4?1:0),
+      uin: a.uin, wx7: wx7.length, nextWxAt: nextWxAt, lastWx: lastWx,
+      freeSlots: freeSlots, releaseAt: (wx7.length>=4 ? (wx7[wx7.length-1].t + 7*DAY) : 0),
+      wxFull: (wx7.length>=4?1:0),
       wx7sum: Math.round(wx7.reduce(function(s,t){ return s + t.amt; }, 0) * 100) / 100,
       risk: risk,
       why: risk ? ('7 天内微信支付 ' + wx7.length + ' 笔，超过 4 笔') : '',
