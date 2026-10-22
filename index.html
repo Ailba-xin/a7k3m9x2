@@ -1013,12 +1013,11 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       var a = relayQueue.shift();
       relayActive++;
       (function(a){
-        // ★ 2026-10-22 data.json 已经有这个号的微信数据 → 直接跳过（不查中转、不覆盖、不会消失）
+        // ★ 2026-10-22 已有 data.json 数据：保留显示，后台静默更新（不设 pending → 不会消失/闪烁）
         var _have = (SITE||{})[a.uin];
-        if (_have && typeof _have.wx7 === 'number' && !_have.err) { relayActive--; relayPump(); return; }
+        var _quiet = !!(_have && typeof _have.wx7 === 'number' && !_have.err);
         var cur = (SITE||{})[a.uin] || { uin: a.uin };
-        cur.pending = 1; (SITE||{})[a.uin] = cur;
-        patchRows();
+        if(!_quiet){ cur.pending = 1; (SITE||{})[a.uin] = cur; patchRows(); }
         tradesOf(a).then(function(j){
           if (j && (j.ret === 0 || j.ret === '0')) {
             (SITE||{})[a.uin] = computeSite(a, j.WaterList || []);
