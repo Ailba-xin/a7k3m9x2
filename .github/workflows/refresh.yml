@@ -1,4 +1,4 @@
-name: 刷新所有人数据
+name: 刷新手机版数据
 
 on:
   schedule:
@@ -20,23 +20,26 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 抓取数据（多人）
+      - name: 抓取交易数据
         env:
-          QBUSERS: ${{ secrets.QBUSERS }}
           QBCKS: ${{ secrets.QBCKS }}
           QBKEY: ${{ secrets.QBKEY }}
-        run: node scripts/fetch-trades-multi.mjs
+        run: node scripts/fetch-trades.mjs
 
       - name: 提交到 data 分支（不触发 Pages 构建）
         run: |
           set -e
           git config user.name "qb-bot"
           git config user.email "qb-bot@users.noreply.github.com"
+          mkdir -p /tmp/qbo
+          cp data.json /tmp/qbo/ 2>/dev/null || true
+          cp status.json /tmp/qbo/ 2>/dev/null || true
           git fetch origin data || true
           git checkout data 2>/dev/null || git checkout --orphan data
           git rm -rf . >/dev/null 2>&1 || true
           mkdir -p u
-          cp -r u/* u/ 2>/dev/null || true
-          git add -f u status.json
+          cp /tmp/qbo/data.json data.json 2>/dev/null || true
+          cp /tmp/qbo/status.json status.json 2>/dev/null || true
+          git add -f data.json status.json
           git commit -m "数据 $(date '+%Y-%m-%d %H:%M')" || echo "no change"
           git push -f origin HEAD:data
