@@ -586,8 +586,9 @@ function patchRows(){
             var _past7 = _t7 <= Date.now();
             h += '<div class="det-row wx"><span class="t">'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes())+'</span>'
                + '<span>微信 +'+Number(r2.amt).toFixed(2)+'</span>'
-               + '<span style="color:'+(_past7?'#16873f':'#a25b1a')+';font-weight:600">'
-               + (_past7 ? '已可充' : '7天后可充 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes()))
+               + '<span style="color:'+(_past7?'#9aa4b1':'#a25b1a')+';font-weight:'+(_past7?'400':'600')+'">'
+               + '7天后可充 '+p2(_d7.getMonth()+1)+'-'+p2(_d7.getDate())+' '+p2(_d7.getHours())+':'+p2(_d7.getMinutes())
+               + (_past7 ? '（已过）' : '')
                + '</span></div>';
           }
           h += '</div>';
