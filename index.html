@@ -577,7 +577,13 @@ function patchRows(){
     // 1) 微信支付格
     var wxs = amtEl.querySelector('.wxs');
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
-    if(s.err){ wxs.innerHTML = '明细失败 · <u>重试</u>'; wxs.className='wxs warn'; wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); }; }
+    if(s.err && typeof s.wx7 !== 'number'){ wxs.innerHTML = '明细没查到 · <u>重试</u>'; wxs.className='wxs warn'; wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); }; }
+    else if(s.err && typeof s.wx7 === 'number'){ wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); };
+      var _h3 = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元';
+      if(s.nextWxAt){ var _nd3=new Date(s.nextWxAt*1000); var _p3=function(n){return (n<10?'0':'')+n;}; var _l3=Math.ceil((s.nextWxAt-Date.now()/1000)/86400);
+        if(_l3<=0) _h3+=' · <b style="color:#16873f">现在可充</b>'; else _h3+=' · <b>'+_p3(_nd3.getMonth()+1)+'-'+_p3(_nd3.getDate())+' '+_p3(_nd3.getHours())+':'+_p3(_nd3.getMinutes())+'</b> 可充'; }
+      wxs.innerHTML = _h3 + ' <span style="color:#b8860b;font-size:11px">· 更新失败，点这里重试</span>';
+      wxs.className='wxs'; }
     else if(s.pending){ wxs.textContent='读取中…'; wxs.className='wxs'; wxs.style.cursor=''; wxs.onclick=null; }
     else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = '无记录'; wxs.className='wxs'; } else {
         var _h2 = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元';
