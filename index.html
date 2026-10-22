@@ -1142,11 +1142,23 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
       job.resolve(data); _wxPump();
     }
     window._getWaterList = function(j){ finish((j && (j.ret === 0 || j.ret === '0')) ? j : null); };
+    function viaRelay(){
+      // 直连被 WAF 拦截时，退回中转（qbmobile.icu）
+      var u = job.url.replace('&format=jsonp__getWaterList','');
+      var ctl = null; var timer = null;
+      try { ctl = new AbortController(); } catch(e) {}
+      timer = setTimeout(function(){ try{ if(ctl) ctl.abort(); }catch(e){} finish(null); }, 25000);
+      fetch('https://qbmobile.icu/api/relay?u=' + encodeURIComponent(u), { cache:'no-store', signal: ctl?ctl.signal:undefined })
+        .then(function(r){ return r.text(); })
+        .then(function(txt){ clearTimeout(timer); var j=null; try{ j=JSON.parse(txt); }catch(e){} finish((j && (j.ret===0||j.ret==='0')) ? j : null); })
+        .catch(function(){ clearTimeout(timer); finish(null); });
+    }
     sc = document.createElement('script');
+    sc.referrerPolicy = 'no-referrer';
     sc.src = job.url + '&_t=' + Date.now();
-    sc.onerror = function(){ finish(null); };
+    sc.onerror = function(){ viaRelay(); };
     document.body.appendChild(sc);
-    setTimeout(function(){ finish(null); }, 15000);
+    setTimeout(function(){ if(!done) viaRelay(); }, 6000);
   }
   function tradesOf(a){
     return new Promise(function(resolve){
