@@ -132,6 +132,10 @@ for (const a of cks) {
     const r = computeRisk(wxAll, wx7.length);
     r.wx7sum = Math.round(wx7.reduce((s, t) => s + t.amt, 0) * 100) / 100;
     r.wx = wxAll.slice(0, 30).map(t => ({ t: t.t, amt: t.amt, ch: t.ch }));
+    // ★ 2026-10-23 7天后可充 / 名额（4 个名额滚动，每笔占 7 天）
+    r.nextWxAt = wx7.length >= 4 ? wx7[wx7.length - 1].t + 7 * DAY : 0;
+    r.freeSlots = Math.max(0, 4 - wx7.length);
+    r.wxFull = wx7.length >= 4 ? 1 : 0;
     // 余额快照：每次运行记一条（时间 + 余额），累积起来就能算出"每笔变动后的余额"
     const prevHist = (oldData.accounts && oldData.accounts[key] && Array.isArray(oldData.accounts[key].hist)) ? oldData.accounts[key].hist : [];
     const qbNow = await fetchBalance(a);
