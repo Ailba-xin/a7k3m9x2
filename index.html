@@ -523,7 +523,19 @@ function patchRows(){
     if(!wxs){ wxs = document.createElement('div'); wxs.className='wxs'; amtEl.appendChild(wxs); }
     if(s.err){ wxs.innerHTML = '明细失败 · <u>重试</u>'; wxs.className='wxs warn'; wxs.style.cursor='pointer'; wxs.onclick=function(){ window.retryTrades(a.uin); }; }
     else if(s.pending){ wxs.textContent='读取中…'; wxs.className='wxs'; wxs.style.cursor=''; wxs.onclick=null; }
-    else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = '无记录'; wxs.className='wxs'; } else { wxs.innerHTML = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元'; wxs.className = (s.wx7<4?'wxs warn':'wxs'); } }
+    else if(typeof s.wx7 === 'number'){ wxs.style.cursor=''; wxs.onclick=null; if(s.wx7===0 && !(s.wx7sum)){ wxs.textContent = '无记录'; wxs.className='wxs'; } else {
+        var _h2 = '微信 <b>'+s.wx7+'</b> 次 · '+Number(s.wx7sum||0).toFixed(2)+' 元';
+        if(s.nextWxAt){
+          var _nd = new Date(s.nextWxAt*1000);
+          var _p = function(n){ return (n<10?'0':'')+n; };
+          var _left = Math.ceil((s.nextWxAt - Date.now()/1000)/86400);
+          var _txt = _p(_nd.getMonth()+1)+'-'+_p(_nd.getDate())+' '+_p(_nd.getHours())+':'+_p(_nd.getMinutes());
+          if(_left <= 0){ _h2 += ' · <b style="color:#16873f">现在可充</b>'; }
+          else if(s.wx7>=4){ _h2 += ' · 7天后可充 <b>'+_txt+'</b>（还差 '+_left+' 天）'; }
+          else { _h2 += ' · 下次可充 <b>'+_txt+'</b>'; }
+        }
+        wxs.innerHTML = _h2; wxs.className = (s.wx7<4?'wxs warn':'wxs');
+      } }
     else { wxs.textContent=''; }
     // 2) 风险标签
     var tag = nameEl.querySelector('.tag-risk');
@@ -545,7 +557,14 @@ function patchRows(){
             dtxt = ' <span style="color:' + (a.delta > 0 ? '#0f7a37' : '#c0392b') + ';font-weight:700">'
                  + (a.delta > 0 ? '▲ +' : '▼ ') + Number(a.delta).toFixed(2) + '</span>';
           }
-          h += '<div class="det-bal">余额：<b>' + Number(a.qb).toFixed(2) + '</b> Q币' + dtxt + '</div>';
+          h += '<div class="det-bal">余额：<b>' + Number(a.qb).toFixed(2) + '</b> Q币' + dtxt + '</div>';          if(s.nextWxAt){
+            var _nd2 = new Date(s.nextWxAt*1000); var _p2 = function(n){ return (n<10?'0':'')+n; };
+            var _left2 = Math.ceil((s.nextWxAt - Date.now()/1000)/86400);
+            h += '<div class="det-row" style="color:#a25b1a;font-weight:600">★ 7天后可充：'
+               + _p2(_nd2.getMonth()+1)+'-'+_p2(_nd2.getDate())+' '+_p2(_nd2.getHours())+':'+_p2(_nd2.getMinutes())
+               + (s.wx7>=4 ? '（本周已满 '+s.wx7+' 笔，还差 '+_left2+' 天）' : (s.wx7>0 ? '（已充 '+s.wx7+' 笔）' : ''))
+               + '</div>';
+          }
         }
         if(s.risk===1) h += '<div class="det-risk">⚠ '+ (s.why||'这个号已经充不进微信支付了') + (s.retry? '<br>建议 '+s.retry+' 再试一笔':'') +'</div>';
         var wx = s.wx || [];
@@ -933,8 +952,11 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
     var wx = trades.filter(function(t){ return t.ch === 'wechat' || t.ch === 'weixin'; });
     var wx7 = wx.filter(function(t){ return t.t >= now - 7*DAY; });
     var risk = wx7.length > 4 ? 1 : 0;
+    // ★ 2026-10-22 7天后可充：最后一笔微信充值 + 7 天（和电脑版口径一致）
+    var lastWx = wx7.length ? wx7[0].t : (wx.length ? wx[0].t : 0);
+    var nextWxAt = lastWx ? lastWx + 7*DAY : 0;
     return {
-      uin: a.uin, wx7: wx7.length,
+      uin: a.uin, wx7: wx7.length, nextWxAt: nextWxAt, lastWx: lastWx, wxFull: (wx7.length>=4?1:0),
       wx7sum: Math.round(wx7.reduce(function(s,t){ return s + t.amt; }, 0) * 100) / 100,
       risk: risk,
       why: risk ? ('7 天内微信支付 ' + wx7.length + ' 笔，超过 4 笔') : '',
