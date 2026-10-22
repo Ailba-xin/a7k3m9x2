@@ -1122,40 +1122,37 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
   var DAY = 86400;
   var lastRun = 0;
 
-  function tradesOf(a){
-    var now = Math.floor(Date.now()/1000), begin = now - 14*DAY;
-    var target = 'https://api.unipay.qq.com/v1/r/1450000186/trade_record_query'
-      + '?CmdCode=query2&SubCmdCode=default&PageNum=1&BeginUnixTime=' + begin + '&EndUnixTime=' + now
-      + '&PageSize=50&SystemType=portal'
-      + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
-      + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
-    // 单次 20 秒超时（手机走 Cloudflare 中转实测 8 秒左右，8 秒太短）
-    function once(ms){
-      return new Promise(function(resolve){
-        var done=false, ctl=null;
-        try { ctl = new AbortController(); } catch(e){}
-        var timer=setTimeout(function(){ if(done) return; done=true; try{ if(ctl) ctl.abort(); }catch(e){} resolve(null); }, ms);
-        fetch(RELAY + encodeURIComponent(target), { cache:'no-store', signal: ctl?ctl.signal:undefined })
-          .then(function(r){ return r.text(); })
-          .then(function(txt){
-            if(done) return; done=true; clearTimeout(timer);
-            var j=null; try { j=JSON.parse(txt); } catch(e){}
-            resolve((j && (j.ret===0||j.ret==='0'||j.ret===1018||j.ret===1001)) ? j : null);
-          })
-          .catch(function(){ if(done) return; done=true; clearTimeout(timer); resolve(null); });
-      });
+  // ★ 2026-10-23 直连腾讯（JSONP，不用中转）：实测单号 ~180ms；串行队列避免回调冲突
+  var _wxQueue = [], _wxBusy = false;
+  function _wxPump(){
+    if (_wxBusy || !_wxQueue.length) return;
+    _wxBusy = true;
+    var job = _wxQueue.shift(), done = false, sc = null;
+    function finish(data){
+      if (done) return; done = true; _wxBusy = false;
+      try { window._getWaterList = undefined; } catch(e) {}
+      try { if (sc && sc.parentNode) sc.parentNode.removeChild(sc); } catch(e) {}
+      job.resolve(data); _wxPump();
     }
-    // 失败再试 1 次（共 2 次），间隔 2 秒
-    function attempt(n){
-      return once(20000).then(function(j){
-        if (j) return j;
-        if (n >= 1) return null;
-        return new Promise(function(r){ setTimeout(r, 2000); }).then(function(){ return attempt(n+1); });
-      });
-    }
-    return attempt(0);
+    window._getWaterList = function(j){ finish((j && (j.ret === 0 || j.ret === '0')) ? j : null); };
+    sc = document.createElement('script');
+    sc.src = job.url + '&_t=' + Date.now();
+    sc.onerror = function(){ finish(null); };
+    document.body.appendChild(sc);
+    setTimeout(function(){ finish(null); }, 15000);
   }
-
+  function tradesOf(a){
+    return new Promise(function(resolve){
+      var now = Math.floor(Date.now()/1000), begin = now - 14*DAY;
+      var url = 'https://api.unipay.qq.com/v1/r/1450000186/trade_record_query'
+        + '?CmdCode=query2&SubCmdCode=default&PageNum=1&BeginUnixTime=' + begin + '&EndUnixTime=' + now
+        + '&PageSize=50&SystemType=portal&format=jsonp__getWaterList'
+        + '&openid=' + encodeURIComponent(a.openid||'') + '&openkey=' + encodeURIComponent(a.openkey||'')
+        + '&session_id=openid&session_type=kp_accesstoken&qq_appid=101502376';
+      _wxQueue.push({ url: url, resolve: resolve });
+      _wxPump();
+    });
+  }
   function computeSite(a, list){
     var now = Math.floor(Date.now()/1000);
     var trades = (list || []).map(function(x){
