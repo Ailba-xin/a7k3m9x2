@@ -1210,6 +1210,8 @@ window.addEventListener('load', function(){ setTimeout(patchRows2, 800); });
         // ★ 2026-10-22 已有 data.json 数据：保留显示，后台静默更新（不设 pending → 不会消失/闪烁）
         var _have = (SITE||{})[a.uin];
         var _quiet = !!(_have && typeof _have.wx7 === 'number' && !_have.err);
+        // data.json 刚刷新过（10 分钟内）→ 直接跳过，不再请求（避免 WAF/慢中转）
+        if (_quiet && _have.ts && (Date.now()/1000 - _have.ts) < 600) { relayActive--; relayPump(); return; }
         var cur = (SITE||{})[a.uin] || { uin: a.uin };
         if(!_quiet){ cur.pending = 1; (SITE||{})[a.uin] = cur; patchRows(); }
         tradesOf(a).then(function(j){
