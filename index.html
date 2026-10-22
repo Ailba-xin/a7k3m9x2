@@ -770,6 +770,42 @@ function openBigDetails(){
   try { patchRows(); } catch(e) { }
   if (first) { try { first.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) { } }
 }
+/* 2026-10-23 点横幅：弹出「哪几个号变了多少钱」清单 */
+function openBigList(){
+  var arr = [];
+  for (var i = 0; i < ACC.length; i++) {
+    var a = ACC[i];
+    if (!bigOf(a) || isRead(i)) continue;
+    arr.push({ i: i, a: a, d: Number(a.delta || 0) });
+  }
+  arr.sort(function(p, q){ return Math.abs(q.d) - Math.abs(p.d); });
+  var box = document.getElementById('bigList');
+  if (!box) return;
+  if (!arr.length) { box.innerHTML = '<p style="color:#6b7686">没有未读的大额变动</p>'; }
+  else {
+    var h = '';
+    for (var k = 0; k < arr.length; k++) {
+      var a2 = arr[k].a, d2 = arr[k].d;
+      var nick = a2.nick || ('账号' + (arr[k].i + 1));
+      var uin = (typeof maskUin === 'function') ? maskUin(a2.uin || '') : (a2.uin || '');
+      var qb = (a2.qb === undefined || a2.qb === null) ? '-' : Number(a2.qb).toFixed(2);
+      h += '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px dashed #e3e8ef">'
+         + '<span><b>' + esc(nick) + '</b><span style="color:#8a96a6;font-size:12px;margin-left:6px">' + esc(uin) + '</span></span>'
+         + '<span style="white-space:nowrap"><b style="color:' + (d2 > 0 ? '#16873f' : '#c0392b') + '">'
+         + (d2 > 0 ? '▲ +' : '▼ ') + d2.toFixed(2) + '</b>'
+         + '<span style="color:#8a96a6;font-size:12px;margin-left:8px">余额 ' + qb + '</span></span></div>';
+    }
+    box.innerHTML = h;
+  }
+  document.getElementById('bigBox').hidden = false;
+}
+function closeBig(){ try{ document.getElementById('bigBox').hidden = true; }catch(e){} }
+function ackBig(){
+  for (var i = 0; i < ACC.length; i++) { if (bigOf(ACC[i]) && !isRead(i)) markRead(i); }
+  closeBig();
+  try { paintAlert(); } catch(e) { }
+  try { patchRows2(); } catch(e) { }
+}
 function patchRows2(){
   paintAlert();
   var lis = document.querySelectorAll('#list li');
