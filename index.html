@@ -447,7 +447,7 @@ if('serviceWorker' in navigator){
 }
 </script>
 <style>
-.wxs{font-size:12px;color:#6b7686;margin-top:3px;white-space:nowrap}
+.wxs{font-size:12px;color:#6b7686;margin-top:3px;white-space:normal;line-height:1.45;word-break:break-all}
 .wxs b{color:#1d2733}
 .wxs.warn{color:#b8860b}
 .tag{font-size:11.5px;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle;white-space:nowrap}
@@ -539,9 +539,9 @@ function patchRows(){
           var _left = Math.ceil((s.releaseAt - Date.now()/1000)/86400);
           var _txt = _p(_nd.getMonth()+1)+'-'+_p(_nd.getDate())+' '+_p(_nd.getHours())+':'+_p(_nd.getMinutes());
           if(_left <= 0){ _h2 += ' · <b style="color:#16873f">现在可充</b>'; }
-          else { _h2 += ' · 满 4 笔 → 下次可充 <b>'+_txt+'</b>（最早那笔释放，还差 '+_left+' 天）'; }
+          else { _h2 += ' · 满4笔 → <b>'+_txt+'</b> 可充（'+_left+' 天后）'; }
         } else if(s.wx7>=0 && s.freeSlots>0){
-          _h2 += ' · <b style="color:#16873f">现在可充</b>（还剩 '+s.freeSlots+' 个名额）';
+          _h2 += ' · <b style="color:#16873f">现在可充</b>（剩 '+s.freeSlots+' 个名额）';
         }
         wxs.innerHTML = _h2; wxs.className = (s.wx7<4?'wxs warn':'wxs');
       } }
