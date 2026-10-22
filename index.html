@@ -543,7 +543,13 @@ function hasDataKey() {
     // ★ 没有钥匙 = 别人的设备 → 不请求 data.json（保护主人数据）
     if (!hasDataKey()) { SITE = {}; try { localStorage.removeItem('qbstd_site_cache_v1'); } catch (e) { } return; }
     // ★ 2026-10-23 数据源：本地优先（朋友仓库），失败则读 data 分支的 raw（我们主站用，免 Pages 构建）
-    var _DATA_URLS = ['data.json?t=' + Date.now(), 'https://raw.githubusercontent.com/Ailba-xin/qb-mobile-app/data/data.json?t=' + Date.now()];
+    var _USR = '', _KEYQ = '';
+    try { var _sp = new URLSearchParams(location.search); _USR = _sp.get('u') || ''; _KEYQ = _sp.get('k') || ''; } catch(e) {}
+    if (_KEYQ && /^[0-9a-f]{64}$/i.test(_KEYQ)) { try { lss('qbstd_key_v1', _KEYQ.toLowerCase()); } catch(e) {} }
+    var _BASE_RAW = 'https://raw.githubusercontent.com/Ailba-xin/qb-mobile-app/data/';
+    var _DATA_URLS = _USR
+      ? [_BASE_RAW + 'u/' + encodeURIComponent(_USR) + '.json?t=' + Date.now()]
+      : ['data.json?t=' + Date.now(), _BASE_RAW + 'data.json?t=' + Date.now(), _BASE_RAW + 'u/self.json?t=' + Date.now()];
     function _fetchFirst(i){
       if (i >= _DATA_URLS.length) return Promise.reject(new Error('no data'));
       return fetch(_DATA_URLS[i], { cache: 'no-store' }).then(function(r){
