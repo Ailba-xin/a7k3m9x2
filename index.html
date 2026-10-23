@@ -1336,8 +1336,13 @@ function doRestore(){
 function checkStatus(){
   var el=document.getElementById('stale'); if(!el) return;
   if(window.navigator.standalone===true){
-    el.textContent='ℹ️ iOS 主屏幕模式可能丢数据：建议用 Safari 书签打开，并在「设置」里定期导出备份。';
-    el.style.display='block'; return;
+    // ★ 2026-10-23 点一下提示就消失（记住，不再显示）
+    if (ls('qbstd_ios_hint_v1', false) === true) { el.style.display='none'; return; }
+    el.textContent='ℹ️ iOS 主屏幕模式可能丢数据：建议用 Safari 书签打开，并在「设置」里定期导出备份。（点一下隐藏）';
+    el.style.display='block';
+    el.style.cursor='pointer';
+    el.onclick=function(){ try{ lss('qbstd_ios_hint_v1', true); el.style.display='none'; }catch(e){ el.style.display='none'; } };
+    return;
   }
   fetch('status.json?t='+Date.now(),{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(s){
     var age=Math.floor(Date.now()/1000)-(Number(s.ts)||0);
