@@ -380,6 +380,19 @@ document.addEventListener('touchmove',function(e){
 document.addEventListener('touchend',function(){ if(!ptOn)return; var dy=ptPull; ptOn=false; ptPull=0; if(dy>70){ ptBar(true,'正在刷新…'); refreshAll(); setTimeout(function(){ptBar(false);},1200); } else ptBar(false); },{passive:true});
 
 /* ---------- 一键导入链接（#d=<base64>）：手机点开链接自动导入 CK ---------- */
+/* 2026-10-23 旧的多用户链接（?u=&k=）已废弃 → 提示改用一键导入链接 */
+function warnOldUserLink(){
+  try{
+    if (!/^[?&]?u=/.test(location.search.replace('?',''))) return false;
+    var sp = new URLSearchParams(location.search);
+    if (!sp.get('u')) return false;
+    if (typeof ACC !== 'undefined' && ACC && ACC.length) return false;
+    setTimeout(function(){
+      try{ alert('这个链接是旧格式（?u=），已经不用了。\n\n请改用「一键导入链接」（#d=...）打开，会自动导入账号和钥匙。'); }catch(e){}
+    }, 800);
+    return true;
+  }catch(e){ return false; }
+}
 function importFromHash(){
   try{
     if(!location.hash || location.hash.indexOf('#d=')!==0) return false;
