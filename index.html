@@ -412,9 +412,7 @@ window.__noClickUntil = 0;
       } else {
         if(list.lastElementChild!==dragging) list.appendChild(dragging);
       }
-      // 让卡片视觉上跟着手指（相对当前实际位置）
-      var rr=dragging.getBoundingClientRect();
-      dragging.style.transform='translateY('+(y-(rr.top+rr.height/2))+'px)';
+      // 不浮动跟手（浮起会导致位置来回跳），改为实时换位：卡片按手指位置插入
     }catch(err){}
   }, {passive:false});
   document.addEventListener('touchend', function(){
