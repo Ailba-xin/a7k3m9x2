@@ -99,6 +99,16 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
       <option value="10">10 分钟</option>
       <option value="30">30 分钟</option>
     </select>
+    <p style="margin-top:14px">排列顺序</p>
+    <select id="sortSel" onchange="applySort(this.value)" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px">
+      <option value="default">导入顺序（不动）</option>
+      <option value="qbDesc">余额 从高到低</option>
+      <option value="qbAsc">余额 从低到高</option>
+      <option value="nextAsc">可充时间 近的在前</option>
+      <option value="wxDesc">微信笔数 多的在前</option>
+      <option value="nameAsc">名称 A→Z</option>
+    </select>
+
     <p style="margin-top:14px">显示设置</p>
     <label style="display:flex;align-items:center;gap:8px;font-size:15px">
       <input type="checkbox" id="hideChk" onchange="setHide(this.checked)" style="width:18px;height:18px"> 隐藏 QQ 号
@@ -471,6 +481,7 @@ function openSettings(){
   document.getElementById('ivSel').value=String(IV);
   document.getElementById('hideChk').checked=HIDE;
   try{ var qc=document.getElementById('qbTipChk'); if(qc) qc.checked=qbTipOn(); }catch(e){}
+  try{ var ss=document.getElementById('sortSel'); if(ss) ss.value=sortKind(); }catch(e){}
   try{ var ki=document.getElementById('keyInp'); if(ki) ki.value=(localStorage.getItem('qbstd_key_v1')||''); }catch(e){}
   try{ var kw=document.getElementById('keyWrap'); if(kw && window.AndroidBridge) kw.style.display='none'; }catch(e){}
   try{ var wc=document.getElementById('watchChk'); if(wc){ wc.checked=!!(window.AndroidBridge && AndroidBridge.getWatch && AndroidBridge.getWatch()); } }catch(e){}
@@ -493,6 +504,36 @@ function closeSettings(){
 var KEY_QBTIP='qbstd_qbtip_v1';
 function qbTipOn(){ var v=ls(KEY_QBTIP,true); return v!==false && v!=='0'; }
 function setQbTip(v){ lss(KEY_QBTIP,!!v); }
+/* 2026-10-26 排列顺序 */
+var KEY_SORT='qbstd_sort_v1';
+function sortKind(){ return ls(KEY_SORT,'default'); }
+function applySort(kind){
+  try{
+    lss(KEY_SORT, kind || 'default');
+    var st = (typeof SITE!=='undefined') ? SITE : {};
+    function num(x){ return (x===undefined||x===null||isNaN(x)) ? null : Number(x); }
+    if(kind==='qbDesc'||kind==='qbAsc'){
+      ACC.sort(function(p,q){
+        var a=num(p.qb), b=num(q.qb);
+        if(a===null && b===null) return 0;
+        if(a===null) return 1;
+        if(b===null) return -1;
+        return kind==='qbDesc' ? (b-a) : (a-b);
+      });
+    } else if(kind==='nextAsc'){
+      function nk(a){ var s=st[a.uin]||{}; return (typeof s.nextWxAt==='number') ? (s.nextWxAt===0 ? 1 : s.nextWxAt) : 9e15; }
+      ACC.sort(function(p,q){ return nk(p)-nk(q); });
+    } else if(kind==='wxDesc'){
+      function wk(a){ var s=st[a.uin]||{}; return (typeof s.wx7==='number') ? s.wx7 : -1; }
+      ACC.sort(function(p,q){ return wk(q)-wk(p); });
+    } else if(kind==='nameAsc'){
+      ACC.sort(function(p,q){ return String(p.nick||p.uin||'').localeCompare(String(q.nick||q.uin||''), 'zh-Hans-CN'); });
+    }
+    saveAll();
+    paint();
+    if(window.AndroidBridge){ try{ AndroidBridge.setAccounts(JSON.stringify(ACC)); }catch(e){} }
+  }catch(e){}
+}
 /* 2026-10-23 复制给 iOS 快捷指令用的账号配置（JSON） */
 /* 一键安装快捷指令：建好后把 iCloud 分享链接填到下行的引号里 */
 var IC_SHORTCUT_URL = '';
