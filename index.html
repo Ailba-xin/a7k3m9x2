@@ -45,7 +45,7 @@ ul#list li{background:var(--card);border-radius:12px;margin-bottom:8px;box-shado
 footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 .modal{position:fixed;top:0;left:0;right:0;bottom:0;top:0;left:0;right:0;bottom:0;inset:0;background:rgba(16,24,34,.45);display:flex;align-items:flex-end;z-index:99}
 .modal[hidden]{display:none}
-.sheet{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow:auto}
+.sheet{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .sheet h2{margin:0 0 6px;font-size:17px}
 .sheet p{margin:4px 0 10px;font-size:13px;color:var(--gray)}
 .sheet textarea{width:100%;height:190px;border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
@@ -485,9 +485,15 @@ function ptBar(show,text,color){
   ptBarEl.style.transform=show?'translateY(0)':'translateY(-100%)';
 }
 function atTop(){ return (window.pageYOffset||document.documentElement.scrollTop||0)<=0; }
-document.addEventListener('touchstart',function(e){ if(e.touches.length!==1)return; ptStart=e.touches[0].clientY; ptPull=0; ptOn=atTop(); },{passive:true});
+document.addEventListener('touchstart',function(e){
+  if(e.touches.length!==1)return;
+  // 2026-10-26 弹窗（设置/导入/备份）里不做下拉刷新，否则会把弹窗滚动吃掉
+  if(e.target && e.target.closest && e.target.closest('.modal')){ ptOn=false; ptPull=0; return; }
+  ptStart=e.touches[0].clientY; ptPull=0; ptOn=atTop();
+},{passive:true});
 document.addEventListener('touchmove',function(e){
   if(!ptOn||e.touches.length!==1)return;
+  if(e.target && e.target.closest && e.target.closest('.modal')) return;
   var dy=e.touches[0].clientY-ptStart;
   if(dy<=0){ if(ptPull>0){ptPull=0;ptBar(false);} return; }
   if(!atTop()){ ptOn=false; ptBar(false); return; }
