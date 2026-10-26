@@ -641,7 +641,7 @@ function saveDataKey(){
 
 function setWatchOn(v){
   try{
-    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n安卓请点上面「下载安卓 App」（装好后关掉也会后台更新 + 锁屏通知）\niPhone 用「快捷指令」每小时后台查 + 通知'); return; }
+    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n请用安卓 App（向管理员索取），iPhone 用「快捷指令」每小时后台查。'); return; }
     if(v){ AndroidBridge.setWatch(true); AndroidBridge.requestNotifyPermission(); }
     else { AndroidBridge.setWatch(false); }
     setTimeout(refreshNotifyTip, 900);
@@ -657,7 +657,7 @@ function refreshNotifyTip(){
 function openNotifySetting(){ try{ if(window.AndroidBridge) AndroidBridge.openNotifySettings(); }catch(e){} }
 function testLockNotify(){
   try{
-    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n安卓请点上面「下载安卓 App」（装好后关掉也会后台更新 + 锁屏通知）\niPhone 用「快捷指令」每小时后台查 + 通知'); return; }
+    if(!window.AndroidBridge){ alert('网页版做不到后台通知（浏览器限制）。\n请用安卓 App（向管理员索取），iPhone 用「快捷指令」每小时后台查。'); return; }
     AndroidBridge.requestNotifyPermission();
     setTimeout(function(){ try{ AndroidBridge.testNotify(); }catch(e){} }, 700);
   }catch(e){}
