@@ -309,13 +309,54 @@ function paint(){
     h+='<span>Q点 <span class="v">'+f2(a.qd)+'</span></span>';
     h+='<span>最近查询 <span class="v">'+esc(a.tryAt||'—')+'</span></span>';
     if(a.delta) h+='<span style="cursor:pointer" onclick="clearDelta('+i+')">清除变化</span>';
-    h+='</div></li>';
+    h+='</div><div class="del-btn" data-i="'+i+'">删除</div></li>';
   }
   ul.innerHTML=h;
   document.getElementById('sqb').textContent=f2(Math.round(sqb*100)/100);
   document.getElementById('sqd').textContent=f2(Math.round(sqd*100)/100);
 }
 function clearDelta(i){ if(ACC[i]){ delete ACC[i].delta; delete ACC[i].deltaAt; saveAll(); paint(); } }
+
+/* 2026-10-26 左滑删除账号 */
+function delAccount(i){
+  try{
+    var a=ACC[i]; if(!a) return;
+    var name=a.nick||a.uin||('账号'+(i+1));
+    if(!confirm('删除账号「'+name+'」？\n只从这台手机移除（不影响小刀/电脑版）')) return;
+    ACC.splice(i,1);
+    saveAll();
+    paint();
+    if(window.AndroidBridge){ try{ AndroidBridge.setAccounts(JSON.stringify(ACC)); }catch(e){} }
+  }catch(e){}
+}
+(function(){
+  var startX=0,startY=0,cur=null;
+  document.addEventListener('touchstart', function(e){
+    try{
+      if(!e.touches || e.touches.length!==1) return;
+      var li=e.target.closest ? e.target.closest('#list li') : null;
+      if(!li) return;
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; cur=li;
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    try{
+      if(!cur || !e.touches || e.touches.length!==1) return;
+      var dx=e.touches[0].clientX-startX, dy=e.touches[0].clientY-startY;
+      if(Math.abs(dy)>Math.abs(dx)) return;
+      if(dx<-35){ cur.classList.add('swiped'); }
+      else if(dx>20){ cur.classList.remove('swiped'); }
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('click', function(e){
+    try{
+      var db=e.target.closest ? e.target.closest('.del-btn') : null;
+      if(db){ var i=parseInt(db.getAttribute('data-i'),10); delAccount(i); return; }
+      var sw=document.querySelectorAll('#list li.swiped');
+      for(var k=0;k<sw.length;k++){ if(!sw[k].contains(e.target)) sw[k].classList.remove('swiped'); }
+    }catch(err){}
+  });
+})();
 
 function toggleUin(){
   HIDE=!HIDE; lss(KEY_HIDE,HIDE);
@@ -766,6 +807,14 @@ document.addEventListener('visibilitychange', function(){ if(!document.hidden) l
 #alertbar.warn{background:#fff7e6;border:1px solid #f3d9a4;color:#8a5a00}
 #alertbar.danger{background:#fdecea;border:1px solid #f6c9c9;color:#b03024}
 #alertbar{cursor:pointer}
+ul#list li{position:relative;overflow:hidden}
+.del-btn{position:absolute;right:0;top:0;bottom:0;width:86px;display:flex;align-items:center;justify-content:center;
+  background:#e04b4b;color:#fff;font-size:15px;font-weight:600;transform:translateX(100%);transition:transform .18s;
+  border-radius:18px 0 0 18px;z-index:3}
+ul#list li.swiped .del-btn{transform:translateX(0)}
+ul#list li .row,ul#list li .wxs,ul#list li .det{transition:transform .18s}
+ul#list li.swiped .row,ul#list li.swiped .wxs,ul#list li.swiped .det{transform:translateX(-86px)}
+
 ul#list li .det{display:none;flex-direction:column}
 ul#list li.open .det{display:flex}
 ul#list li.open .row .arrow{transform:rotate(90deg)}
