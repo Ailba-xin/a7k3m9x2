@@ -308,7 +308,7 @@ function paint(){
     var a=ACC[i];
     if(a.qb!==undefined && a.qb!==null) sqb+=Number(a.qb);
     if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
-    h+='<li'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
+    h+='<li data-uin="'+esc(a.uin||'')+'"'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
     h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
     h+='<div class="uin">'+esc(maskUin(a.uin||''))+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
     h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
@@ -366,6 +366,74 @@ function delAccount(i){
       for(var k=0;k<sw.length;k++){ if(!sw[k].contains(e.target)) sw[k].classList.remove('swiped'); }
     }catch(err){}
   });
+})();
+
+/* 2026-10-26 长按拖动自由排序 */
+window.__noClickUntil = 0;
+(function(){
+  var lpTimer=null, dragging=null, startY2=0, moved=false;
+  function clearTimer(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }
+  document.addEventListener('touchstart', function(e){
+    try{
+      if(!e.touches || e.touches.length!==1) return;
+      if(e.target.closest && e.target.closest('.del-btn')) return;
+      var li=e.target.closest ? e.target.closest('#list li') : null;
+      if(!li) return;
+      moved=false; startY2=e.touches[0].clientY;
+      clearTimer();
+      var target=li;
+      lpTimer=setTimeout(function(){
+        lpTimer=null;
+        if(moved) return;
+        dragging=target; target.classList.add('dragging');
+        try{ if(navigator.vibrate) navigator.vibrate(15); }catch(err){}
+      }, 480);
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    try{
+      if(!e.touches || e.touches.length!==1) return;
+      var y=e.touches[0].clientY;
+      if(!dragging){
+        if(Math.abs(y-startY2)>12){ moved=true; clearTimer(); }
+        return;
+      }
+      if(e.cancelable) e.preventDefault();
+      var dy=y-startY2;
+      dragging.style.transform='translateY('+dy+'px)';
+      var list=document.getElementById('list');
+      var lis=Array.prototype.slice.call(list.children);
+      var r=dragging.getBoundingClientRect();
+      var mid=r.top+r.height/2;
+      var target=null;
+      for(var i=0;i<lis.length;i++){
+        var l=lis[i]; if(l===dragging) continue;
+        var lr=l.getBoundingClientRect();
+        if(mid < lr.top + lr.height/2){ target=l; break; }
+      }
+      if(target){ list.insertBefore(dragging, target); }
+      else { list.appendChild(dragging); }
+    }catch(err){}
+  }, {passive:false});
+  document.addEventListener('touchend', function(){
+    try{
+      clearTimer();
+      if(!dragging) return;
+      dragging.style.transform='';
+      dragging.classList.remove('dragging');
+      var lis=document.querySelectorAll('#list li');
+      var map={}; for(var i=0;i<ACC.length;i++) map[String(ACC[i].uin)]=ACC[i];
+      var order=[];
+      for(var k=0;k<lis.length;k++){ var u=lis[k].getAttribute('data-uin'); if(u && map[u]) order.push(map[u]); }
+      if(order.length===ACC.length){
+        ACC=order; lss(KEY_SORT,'default'); saveAll();
+        if(window.AndroidBridge){ try{ AndroidBridge.setAccounts(JSON.stringify(ACC)); }catch(err){} }
+      }
+      dragging=null;
+      window.__noClickUntil=Date.now()+500;
+      try{ paint(); }catch(err){}
+    }catch(err){}
+  }, {passive:true});
 })();
 
 function toggleUin(){
@@ -855,6 +923,8 @@ ul#list li{position:relative;overflow:hidden}
 ul#list li.swiped .del-btn{transform:translateX(0)}
 ul#list li .row,ul#list li .wxs,ul#list li .det{transition:transform .18s}
 ul#list li.swiped .row,ul#list li.swiped .wxs,ul#list li.swiped .det{transform:translateX(-86px)}
+ul#list li.dragging{opacity:.92;box-shadow:0 8px 22px rgba(16,28,44,.22);z-index:6;position:relative}
+ul#list li.dragging .del-btn{display:none}
 
 ul#list li .det{display:none;flex-direction:column}
 ul#list li.open .det{display:flex}
@@ -987,6 +1057,7 @@ function patchRows2(){
 document.addEventListener('click', function (ev) {
   var _bar = ev.target && ev.target.closest ? ev.target.closest('#alertbar') : null;
   if (_bar) { try { openBigList(); } catch(e) { } return; }
+  if (window.__noClickUntil && Date.now() < window.__noClickUntil) return;
   var li = ev.target && ev.target.closest ? ev.target.closest('#list li') : null;
   if (!li) return;
   if (ev.target.closest('a,button')) return;
@@ -1018,6 +1089,7 @@ var lastTapT = 0, lastTapI = -1;
 document.addEventListener('click', function (ev) {
   var _bar = ev.target && ev.target.closest ? ev.target.closest('#alertbar') : null;
   if (_bar) { try { openBigList(); } catch(e) { } return; }
+  if (window.__noClickUntil && Date.now() < window.__noClickUntil) return;
   var li = ev.target && ev.target.closest ? ev.target.closest('#list li') : null;
   if (!li) return;
   var now = Date.now();
