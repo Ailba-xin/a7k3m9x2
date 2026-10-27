@@ -43,11 +43,23 @@ SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
 AVDM="$SDK/cmdline-tools/latest/bin/avdmanager"
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home 2>/dev/null || true)}"
 if [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
-  err "需要 Java（JDK 17）。请先安装："
-  echo "  brew install --cask temurin@17"
-  echo "  装完再重新运行本脚本。"
+  echo "未检测到 Java，自动下载 JDK 17（约 180MB，等一会儿）..."
+  if [ ! -x "$WORK/jdk17/Contents/Home/bin/java" ]; then
+    curl -fL --retry 3 -o "$WORK/jdk17.tar.gz" "https://api.adoptium.net/v3/binary/latest/17/ga/mac/aarch64/jdk/hotspot/normal/eclipse"
+    mkdir -p "$WORK/jdk17"
+    tar -xzf "$WORK/jdk17.tar.gz" -C "$WORK/jdk17" --strip-components=1
+  fi
+  if [ -x "$WORK/jdk17/Contents/Home/bin/java" ]; then
+    export JAVA_HOME="$WORK/jdk17/Contents/Home"
+  elif [ -x "$WORK/jdk17/bin/java" ]; then
+    export JAVA_HOME="$WORK/jdk17"
+  fi
+fi
+if [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+  err "Java 安装失败。请手动安装： brew install --cask temurin@17  （或从 adoptium.net 下载 JDK17）"
   exit 1
 fi
+echo "JAVA_HOME=$JAVA_HOME"
 
 say "3/9 安装 SDK 组件（模拟器 + arm64 系统镜像，约 1.5GB，耐心等）"
 yes | "$SDKM" --sdk_root="$SDK" --licenses >/dev/null 2>&1 || true
