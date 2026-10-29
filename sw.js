@@ -1,7 +1,7 @@
 // Q币余额表 独立版 Service Worker
 // 网络优先：联网时永远用最新页面（这样我在 GitHub 上一更新，手机打开就是新版）；
 // 断网时回退到缓存，至少还能看到上次的数据。
-var CACHE = 'qbstd-v1';
+var CACHE = 'qbstd-v2';
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (ks) {
