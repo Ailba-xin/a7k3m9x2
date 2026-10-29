@@ -90,7 +90,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 </div>
 
 <ul id="list"></ul>
-<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29d</span></footer>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29e</span></footer>
 <div id="ptbar"></div>
 <div id="qbToast"></div>
 
@@ -320,7 +320,7 @@ function paint(){
     h+='<span>Q点 <span class="v">'+f2(a.qd)+'</span></span>';
     h+='<span>最近查询 <span class="v">'+esc(a.tryAt||'—')+'</span></span>';
     if(a.delta) h+='<span style="cursor:pointer" onclick="clearDelta('+i+')">清除变化</span>';
-    h+='</div><div class="del-btn" data-i="'+i+'">删除</div></li>';
+    h+='</div><div class="cp-btn2" data-i="'+i+'">复制</div><div class="del-btn" data-i="'+i+'">删除</div></li>';
   }
   ul.innerHTML=h;
   document.getElementById('sqb').textContent=f2(Math.round(sqb*100)/100);
@@ -371,8 +371,19 @@ function delAccount(i){
         var u=pendingUin; pendingUin='';
         var pt=null;
         try{ if(e.changedTouches && e.changedTouches[0]) pt={x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}; }catch(e2){}
-        window.__noClickUntil=Date.now()+600;
-        cpCopy(u, pt);
+        window.__noClickUntil=Date.now()+700;
+        /* iOS Safari：touchend 里复制会被拦 → 记下待复制，交给随后的 click（真实手势）执行 */
+        window.__pendingSwipeCopy=u; window.__pendingSwipeAt=Date.now();
+        try{ if(cur) cur.classList.add('swipe-copy-hint'); }catch(e3){}
+        setTimeout(function(){
+          try{
+            if(window.__pendingSwipeCopy===u){
+              window.__pendingSwipeCopy='';
+              cpCopy(u, pt);            /* 没有 click 到来的浏览器（部分安卓）走这里 */
+            }
+            var l=document.querySelector('#list li.swipe-copy-hint'); if(l) l.classList.remove('swipe-copy-hint');
+          }catch(e4){}
+        }, 320);
       }
       cur=null;
     }catch(err){}
@@ -382,6 +393,19 @@ function delAccount(i){
     try{
       var db=e.target.closest ? e.target.closest('.del-btn') : null;
       if(db){ var i=parseInt(db.getAttribute('data-i'),10); delAccount(i); return; }
+      var cb=e.target.closest ? e.target.closest('.cp-btn2') : null;
+      if(cb){
+        var ci=parseInt(cb.getAttribute('data-i'),10);
+        var a2=ACC[ci];
+        if(a2 && a2.uin){
+          window.__noClickUntil=Date.now()+600;
+          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(err){}
+          cpCopy(a2.uin, {x:e.clientX||0, y:e.clientY||0});
+        }
+        var li2=cb.closest ? cb.closest('li') : null;
+        if(li2) li2.classList.remove('swiped');
+        return;
+      }
       var sw=document.querySelectorAll('#list li.swiped');
       for(var k=0;k<sw.length;k++){ if(!sw[k].contains(e.target)) sw[k].classList.remove('swiped'); }
     }catch(err){}
@@ -487,10 +511,21 @@ function cpToastSelectable(text){
     cpToast._t=setTimeout(function(){ el.classList.remove('on'); }, 4000);
   }catch(e){}
 }
-/* 2026-10-29 点击列表里的「复制」按钮（iOS Safari 对"真实点击"最宽容） */
+/* 2026-10-29 点击「复制」按钮 / 右划后随后的 click（iOS Safari 只认真实点击） */
 (function(){
   document.addEventListener('click', function(e){
     try{
+      /* A. 右划后浏览器补发的这次 click：执行复制（真实手势 ✓） */
+      if(window.__pendingSwipeCopy && (Date.now()-(window.__pendingSwipeAt||0)) < 1500){
+        var su=window.__pendingSwipeCopy;
+        window.__pendingSwipeCopy='';
+        window.__noClickUntil=Date.now()+700;
+        try{ e.preventDefault(); e.stopPropagation(); }catch(e5){}
+        try{ if(navigator.vibrate) navigator.vibrate(12); }catch(err){}
+        cpCopy(su, {x:e.clientX||0, y:e.clientY||0});
+        return;
+      }
+      /* B. 点卡片上的「复制」按钮 */
       var b=e.target.closest ? e.target.closest('.cp-btn') : null;
       if(!b) return;
       var u=b.getAttribute('data-uin-full')||'';
@@ -1091,11 +1126,14 @@ ul#list li{position:relative;overflow:hidden}
 .del-btn{position:absolute;right:0;top:0;bottom:0;width:86px;display:flex;align-items:center;justify-content:center;
   background:#e04b4b;color:#fff;font-size:15px;font-weight:600;transform:translateX(100%);transition:transform .18s;
   border-radius:18px 0 0 18px;z-index:3}
+.cp-btn2{position:absolute;right:86px;top:0;bottom:0;width:86px;display:flex;align-items:center;justify-content:center;
+  background:#1c589e;color:#fff;font-size:15px;font-weight:600;transform:translateX(220%);transition:transform .18s;z-index:3}
 ul#list li.swiped .del-btn{transform:translateX(0)}
+ul#list li.swiped .cp-btn2{transform:translateX(0)}
 ul#list li .row,ul#list li .wxs,ul#list li .det{transition:transform .18s}
-ul#list li.swiped .row,ul#list li.swiped .wxs,ul#list li.swiped .det{transform:translateX(-86px)}
+ul#list li.swiped .row,ul#list li.swiped .wxs,ul#list li.swiped .det{transform:translateX(-172px)}
 ul#list li.dragging{opacity:.92;box-shadow:0 8px 22px rgba(16,28,44,.22);z-index:6;position:relative}
-ul#list li.dragging .del-btn{display:none}
+ul#list li.dragging .del-btn,ul#list li.dragging .cp-btn2{display:none}
 
 ul#list li .det{display:none;flex-direction:column}
 ul#list li.open .det{display:flex}
