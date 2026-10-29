@@ -30,6 +30,10 @@ ul#list li{background:var(--card);border-radius:12px;margin-bottom:8px;box-shado
 .who{flex:1 1 auto;min-width:0}
 .name{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .uin{font-size:12.5px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uin .copy-uin{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.uin .copy-uin:active{opacity:.55}
+#cpToast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.92);background:rgba(17,24,39,.93);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;line-height:1.5;z-index:9999;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;max-width:80vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+#cpToast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .amt{text-align:right;flex:0 0 auto}
 .qb{font-size:22px;font-weight:800;color:#0f7a37;font-variant-numeric:tabular-nums}
 .qd{font-size:12px;color:var(--gray)}
@@ -305,7 +309,7 @@ function paint(){
     if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
     h+='<li data-uin="'+esc(a.uin||'')+'"'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
     h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
-    h+='<div class="uin">'+esc(maskUin(a.uin||''))+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
+    h+='<div class="uin"><span class="copy-uin" data-uin-full="'+esc(a.uin||'')+'">'+esc(maskUin(a.uin||''))+'</span>'+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
     h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
     if(a.err) h+='<span class="badge b-err">⚠ 查询失败</span>';
     h+='</div>';
@@ -363,15 +367,88 @@ function delAccount(i){
   });
 })();
 
-/* 2026-10-26 长按拖动自由排序（修复：只能拖到最上/最下） */
+/* 2026-10-29 长按 QQ号 复制到剪贴板 */
+function cpToast(msg){
+  try{
+    var el=document.getElementById('cpToast');
+    if(!el){ el=document.createElement('div'); el.id='cpToast'; document.body.appendChild(el); }
+    el.textContent=msg;
+    el.classList.add('on');
+    if(cpToast._t) clearTimeout(cpToast._t);
+    cpToast._t=setTimeout(function(){ el.classList.remove('on'); }, 1500);
+  }catch(e){}
+}
+function cpCopy(text){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ cpToast('已复制 ' + text); }, function(){ cpFallback(text); });
+    } else cpFallback(text);
+  }catch(e){ cpFallback(text); }
+}
+function cpFallback(text){
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    var ok=false;
+    try{ ok=document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    cpToast(ok ? ('已复制 ' + text) : '复制失败，请手动长按选择');
+  }catch(e){ cpToast('复制失败'); }
+}
+(function(){
+  var timer=null, started=0, sx=0, sy=0, node=null;
+  function cancel(){ if(timer){ clearTimeout(timer); timer=null; } node=null; }
+  document.addEventListener('touchstart', function(e){
+    try{
+      if(!e.touches || e.touches.length!==1) return;
+      var tgt=e.target.closest ? e.target.closest('.copy-uin') : null;
+      if(!tgt) return;
+      node=tgt; started=Date.now(); sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+      if(timer){ clearTimeout(timer); timer=null; }
+      timer=setTimeout(function(){
+        timer=null;
+        if(!node) return;
+        var u=node.getAttribute('data-uin-full')||'';
+        if(!u){ node=null; return; }
+        try{ if(navigator.vibrate) navigator.vibrate(18); }catch(err){}
+        window.__noClickUntil=Date.now()+500;
+        cpCopy(u);
+        node=null;
+      }, 500);
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    try{
+      if(!node || !e.touches || e.touches.length!==1) return;
+      var dx=Math.abs(e.touches[0].clientX-sx), dy=Math.abs(e.touches[0].clientY-sy);
+      if(dx>10 || dy>10) cancel();
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    try{
+      if(timer && node){
+        var u=node.getAttribute('data-uin-full')||'';
+        var held=Date.now()-started;
+        if(u && held<500){ /* 短按：不复制，保持原有展开/收起行为 */ }
+      }
+      if(timer){ clearTimeout(timer); timer=null; }
+      node=null;
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchcancel', function(){ cancel(); }, {passive:true});
+})();
+
+
 window.__noClickUntil = 0;
+/* 2026-10-26 长按拖动自由排序（修复：只能拖到最上/最下） */
 (function(){
   var lpTimer=null, dragging=null, startPointerY=0, moved=false;
   function clearTimer(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }
   document.addEventListener('touchstart', function(e){
     try{
       if(!e.touches || e.touches.length!==1) return;
-      if(e.target.closest && e.target.closest('.del-btn')) return;
+      if(e.target.closest && (e.target.closest('.del-btn') || e.target.closest('.copy-uin'))) return;
       var li=e.target.closest ? e.target.closest('#list li') : null;
       if(!li) return;
       moved=false; startPointerY=e.touches[0].clientY;
