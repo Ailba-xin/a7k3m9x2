@@ -339,13 +339,13 @@ function delAccount(i){
   }catch(e){}
 }
 (function(){
-  var startX=0,startY=0,cur=null;
+  var startX=0,startY=0,cur=null,copied=false;
   document.addEventListener('touchstart', function(e){
     try{
       if(!e.touches || e.touches.length!==1) return;
       var li=e.target.closest ? e.target.closest('#list li') : null;
       if(!li) return;
-      startX=e.touches[0].clientX; startY=e.touches[0].clientY; cur=li;
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; cur=li; copied=false;
     }catch(err){}
   }, {passive:true});
   document.addEventListener('touchmove', function(e){
@@ -355,6 +355,16 @@ function delAccount(i){
       if(Math.abs(dy)>Math.abs(dx)) return;
       if(dx<-35){ cur.classList.add('swiped'); }
       else if(dx>20){ cur.classList.remove('swiped'); }
+      /* 2026-10-29 右划复制 QQ号（阈值 60px，滑动过程中就触发，不用等松手） */
+      if(dx>60 && !copied){
+        copied=true;
+        var u=cur.getAttribute('data-uin')||'';
+        if(u){
+          try{ if(navigator.vibrate) navigator.vibrate(18); }catch(err){}
+          window.__noClickUntil=Date.now()+500;
+          cpCopy(u);
+        }
+      }
     }catch(err){}
   }, {passive:true});
   document.addEventListener('click', function(e){
