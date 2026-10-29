@@ -367,7 +367,7 @@ function delAccount(i){
   });
 })();
 
-/* 2026-10-29 长按 QQ号 复制到剪贴板 */
+/* 2026-10-29 双击 QQ号 复制到剪贴板 */
 function cpToast(msg){
   try{
     var el=document.getElementById('cpToast');
@@ -397,46 +397,32 @@ function cpFallback(text){
   }catch(e){ cpToast('复制失败'); }
 }
 (function(){
-  var timer=null, started=0, sx=0, sy=0, node=null;
-  function cancel(){ if(timer){ clearTimeout(timer); timer=null; } node=null; }
-  document.addEventListener('touchstart', function(e){
+  var lastT=0, lastUin='';
+  /* 捕获阶段先跑：第二次点击时先压住行展开，再复制 */
+  document.addEventListener('click', function(e){
     try{
-      if(!e.touches || e.touches.length!==1) return;
-      var tgt=e.target.closest ? e.target.closest('.copy-uin') : null;
-      if(!tgt) return;
-      node=tgt; started=Date.now(); sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-      if(timer){ clearTimeout(timer); timer=null; }
-      timer=setTimeout(function(){
-        timer=null;
-        if(!node) return;
-        var u=node.getAttribute('data-uin-full')||'';
-        if(!u){ node=null; return; }
+      var t=e.target.closest ? e.target.closest('.copy-uin') : null;
+      if(!t) return;
+      var u=t.getAttribute('data-uin-full')||'';
+      if(!u) return;
+      var now=Date.now();
+      if(u===lastUin && (now-lastT) < 400){
+        window.__noClickUntil=now+450;
         try{ if(navigator.vibrate) navigator.vibrate(18); }catch(err){}
-        window.__noClickUntil=Date.now()+500;
         cpCopy(u);
-        node=null;
-      }, 500);
+        lastT=0; lastUin='';
+      } else {
+        lastT=now; lastUin=u;
+      }
     }catch(err){}
-  }, {passive:true});
-  document.addEventListener('touchmove', function(e){
-    try{
-      if(!node || !e.touches || e.touches.length!==1) return;
-      var dx=Math.abs(e.touches[0].clientX-sx), dy=Math.abs(e.touches[0].clientY-sy);
-      if(dx>10 || dy>10) cancel();
-    }catch(err){}
-  }, {passive:true});
+  }, true);
+  /* 双击时禁止浏览器缩放（部分安卓/微信浏览器会放大） */
   document.addEventListener('touchend', function(e){
     try{
-      if(timer && node){
-        var u=node.getAttribute('data-uin-full')||'';
-        var held=Date.now()-started;
-        if(u && held<500){ /* 短按：不复制，保持原有展开/收起行为 */ }
-      }
-      if(timer){ clearTimeout(timer); timer=null; }
-      node=null;
+      var t=e.target.closest ? e.target.closest('.copy-uin') : null;
+      if(t && (Date.now()-lastT) < 400 && e.cancelable) e.preventDefault();
     }catch(err){}
-  }, {passive:true});
-  document.addEventListener('touchcancel', function(){ cancel(); }, {passive:true});
+  }, {passive:false});
 })();
 
 
