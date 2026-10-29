@@ -339,13 +339,13 @@ function delAccount(i){
   }catch(e){}
 }
 (function(){
-  var startX=0,startY=0,cur=null,copied=false;
+  var startX=0,startY=0,cur=null,copied=false,pendingUin='';
   document.addEventListener('touchstart', function(e){
     try{
       if(!e.touches || e.touches.length!==1) return;
       var li=e.target.closest ? e.target.closest('#list li') : null;
       if(!li) return;
-      startX=e.touches[0].clientX; startY=e.touches[0].clientY; cur=li; copied=false;
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; cur=li; copied=false; pendingUin='';
     }catch(err){}
   }, {passive:true});
   document.addEventListener('touchmove', function(e){
@@ -355,18 +355,25 @@ function delAccount(i){
       if(Math.abs(dy)>Math.abs(dx)) return;
       if(dx<-35){ cur.classList.add('swiped'); }
       else if(dx>20){ cur.classList.remove('swiped'); }
-      /* 2026-10-29 右划复制 QQ号（阈值 60px，滑动过程中就触发，不用等松手） */
+      /* 2026-10-29 右划复制 QQ号：滑动时先记下，松手（用户手势）时真正复制 */
       if(dx>60 && !copied){
         copied=true;
-        var u=cur.getAttribute('data-uin')||'';
-        if(u){
-          try{ if(navigator.vibrate) navigator.vibrate(18); }catch(err){}
-          window.__noClickUntil=Date.now()+500;
-          cpCopy(u);
-        }
+        pendingUin=cur.getAttribute('data-uin')||'';
+        if(pendingUin){ try{ if(navigator.vibrate) navigator.vibrate(18); }catch(err){} }
       }
     }catch(err){}
   }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    try{
+      if(pendingUin){
+        var u=pendingUin; pendingUin='';
+        window.__noClickUntil=Date.now()+600;
+        cpCopy(u);
+      }
+      cur=null;
+    }catch(err){}
+  }, {passive:true});
+  document.addEventListener('touchcancel', function(){ pendingUin=''; cur=null; }, {passive:true});
   document.addEventListener('click', function(e){
     try{
       var db=e.target.closest ? e.target.closest('.del-btn') : null;
@@ -389,22 +396,62 @@ function cpToast(msg){
   }catch(e){}
 }
 function cpCopy(text){
+  var ok=false;
+  try{ ok=cpExecCopy(text); }catch(e){ ok=false; }
+  if(ok){ cpToast('已复制 ' + text); return; }
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ cpToast('已复制 ' + text); }, function(){ cpFallback(text); });
-    } else cpFallback(text);
-  }catch(e){ cpFallback(text); }
+      navigator.clipboard.writeText(text).then(function(){ cpToast('已复制 ' + text); }, function(){ cpManual(text); });
+      return;
+    }
+  }catch(e){}
+  cpManual(text);
 }
-function cpFallback(text){
+/* 同步复制（必须由用户手势触发；微信/UC 里比 clipboard API 更可靠） */
+function cpExecCopy(text){
+  var ok=false, ta=null;
   try{
-    var ta=document.createElement('textarea');
-    ta.value=text; ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.focus(); ta.select();
-    var ok=false;
-    try{ ok=document.execCommand('copy'); }catch(e){}
-    document.body.removeChild(ta);
-    cpToast(ok ? ('已复制 ' + text) : '复制失败，请手动长按选择');
-  }catch(e){ cpToast('复制失败'); }
+    ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','readonly');
+    ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0'; ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ ta.setSelectionRange(0, text.length); }catch(e){}
+    ok=document.execCommand('copy');
+  }catch(e){ ok=false; }
+  try{ if(ta && ta.parentNode) ta.parentNode.removeChild(ta); }catch(e){}
+  return ok;
+}
+/* 兜底：弹窗让用户自己复制（长按/点全选） */
+function cpManual(text){
+  try{
+    var old=document.getElementById('cpManualBox');
+    if(old) old.parentNode.removeChild(old);
+    var box=document.createElement('div');
+    box.id='cpManualBox';
+    box.style.cssText='position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:18px';
+    var card=document.createElement('div');
+    card.style.cssText='background:#fff;border-radius:14px;padding:16px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3)';
+    card.innerHTML='<div style="font-weight:700;font-size:16px;margin-bottom:8px">手动复制 QQ号</div>'
+      +'<div style="font-size:13px;color:#6b7686;margin-bottom:10px">长按下面号码 → 全选 → 复制</div>'
+      +'<input id="cpManualInput" readonly style="width:100%;padding:10px;font-size:17px;border:1px solid #d5dbe3;border-radius:10px;text-align:center;letter-spacing:1px" />'
+      +'<div style="display:flex;gap:10px;margin-top:12px">'
+      +'<button id="cpManualSel" style="flex:1;padding:11px;border:1px solid #1c589e;background:#fff;color:#1c589e;border-radius:10px;font-size:15px">全选</button>'
+      +'<button id="cpManualClose" style="flex:1;padding:11px;border:0;background:#1c589e;color:#fff;border-radius:10px;font-size:15px">关闭</button>'
+      +'</div>';
+    box.appendChild(card);
+    document.body.appendChild(box);
+    var inp=document.getElementById('cpManualInput');
+    inp.value=text;
+    setTimeout(function(){ try{ inp.focus(); inp.select(); }catch(e){} }, 60);
+    document.getElementById('cpManualSel').onclick=function(){
+      try{ inp.focus(); inp.select(); try{ inp.setSelectionRange(0, text.length); }catch(e){} }catch(e){}
+      var ok2=false; try{ ok2=document.execCommand('copy'); }catch(e){}
+      cpToast(ok2 ? ('已复制 ' + text) : '请长按号码手动复制');
+    };
+    document.getElementById('cpManualClose').onclick=function(){ try{ box.parentNode.removeChild(box); }catch(e){} };
+  }catch(e){ cpToast('复制失败，请手动记录：' + text); }
 }
 (function(){
   var lastT=0, lastUin='';
