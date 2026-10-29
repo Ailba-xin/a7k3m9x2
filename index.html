@@ -32,7 +32,7 @@ ul#list li{background:var(--card);border-radius:12px;margin-bottom:8px;box-shado
 .uin{font-size:12.5px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .uin .copy-uin{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .uin .copy-uin:active{opacity:.55}
-.cp-btn{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid #cfd8e3;border-radius:8px;font-size:11px;line-height:16px;color:#1c589e;background:#f2f7ff;vertical-align:middle;-webkit-tap-highlight-color:transparent}
+.cp-btn{display:inline-block;margin:0 6px 0 0;padding:0 6px;border:1px solid #cfd8e3;border-radius:7px;font-size:11px;line-height:15px;color:#1c589e;background:#f2f7ff;vertical-align:middle;-webkit-tap-highlight-color:transparent}
 .cp-btn:active{background:#dfeaff}
 #cpToast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.92);background:rgba(17,24,39,.93);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;line-height:1.5;z-index:9999;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;max-width:80vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.28)}
 #cpToast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -90,7 +90,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 </div>
 
 <ul id="list"></ul>
-<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29f</span></footer>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29g</span></footer>
 <div id="ptbar"></div>
 <div id="qbToast"></div>
 
@@ -311,8 +311,8 @@ function paint(){
     if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
     h+='<li data-uin="'+esc(a.uin||'')+'"'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
     h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
-    h+='<div class="uin"><span class="copy-uin" data-uin-full="'+esc(a.uin||'')+'">'+esc(maskUin(a.uin||''))+'</span><span class="cp-btn" data-uin-full="'+esc(a.uin||'')+'" onclick="event.stopPropagation();return cpCopyUin(this.getAttribute(&quot;data-uin-full&quot;))">复制</span>'+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
-    h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
+    h+='<div class="uin"><span class="copy-uin" data-uin-full="'+esc(a.uin||'')+'">'+esc(maskUin(a.uin||''))+'</span>'+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
+    h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd"><span class="cp-btn" data-uin-full="'+esc(a.uin||'')+'" onclick="event.stopPropagation();return cpCopyUin(this.getAttribute(&quot;data-uin-full&quot;))">复制</span>'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
     if(a.err) h+='<span class="badge b-err">⚠ 查询失败</span>';
     h+='</div>';
     h+='<div class="det">';
