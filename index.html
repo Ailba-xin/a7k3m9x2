@@ -90,7 +90,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 </div>
 
 <ul id="list"></ul>
-<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29e</span></footer>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29f</span></footer>
 <div id="ptbar"></div>
 <div id="qbToast"></div>
 
@@ -311,7 +311,7 @@ function paint(){
     if(a.qd!==undefined && a.qd!==null) sqd+=Number(a.qd);
     h+='<li data-uin="'+esc(a.uin||'')+'"'+(_openU[a.uin]?' class="open"':'')+'><div class="row">';
     h+='<div class="who"><div class="name">'+esc(a.nick||('账号'+(i+1)))+'</div>';
-    h+='<div class="uin"><span class="copy-uin" data-uin-full="'+esc(a.uin||'')+'">'+esc(maskUin(a.uin||''))+'</span><span class="cp-btn" data-uin-full="'+esc(a.uin||'')+'">复制</span>'+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
+    h+='<div class="uin"><span class="copy-uin" data-uin-full="'+esc(a.uin||'')+'">'+esc(maskUin(a.uin||''))+'</span><span class="cp-btn" data-uin-full="'+esc(a.uin||'')+'" onclick="event.stopPropagation();return cpCopyUin(this.getAttribute(&quot;data-uin-full&quot;))">复制</span>'+(a.delta?' · <b style="color:'+(a.delta>0?'#16873f':'#c0392b')+'">'+(a.delta>0?'▲ +':'▼ ')+a.delta.toFixed(2)+' '+esc(a.deltaAt||'')+'</b>':'')+'</div></div>';
     h+='<div class="amt"><div class="qb">'+(a.err?'—':f2(a.qb))+'</div><div class="qd">'+(a.err?'查询失败':(f2(a.qd)+' Q点'))+'</div></div>';
     if(a.err) h+='<span class="badge b-err">⚠ 查询失败</span>';
     h+='</div>';
@@ -320,7 +320,7 @@ function paint(){
     h+='<span>Q点 <span class="v">'+f2(a.qd)+'</span></span>';
     h+='<span>最近查询 <span class="v">'+esc(a.tryAt||'—')+'</span></span>';
     if(a.delta) h+='<span style="cursor:pointer" onclick="clearDelta('+i+')">清除变化</span>';
-    h+='</div><div class="cp-btn2" data-i="'+i+'">复制</div><div class="del-btn" data-i="'+i+'">删除</div></li>';
+    h+='</div><div class="cp-btn2" data-i="'+i+'" data-uin-full="'+esc(a.uin||'')+'" onclick="event.stopPropagation();return cpCopyUin(this.getAttribute(&quot;data-uin-full&quot;))">复制</div><div class="del-btn" data-i="'+i+'">删除</div></li>';
   }
   ul.innerHTML=h;
   document.getElementById('sqb').textContent=f2(Math.round(sqb*100)/100);
@@ -393,19 +393,7 @@ function delAccount(i){
     try{
       var db=e.target.closest ? e.target.closest('.del-btn') : null;
       if(db){ var i=parseInt(db.getAttribute('data-i'),10); delAccount(i); return; }
-      var cb=e.target.closest ? e.target.closest('.cp-btn2') : null;
-      if(cb){
-        var ci=parseInt(cb.getAttribute('data-i'),10);
-        var a2=ACC[ci];
-        if(a2 && a2.uin){
-          window.__noClickUntil=Date.now()+600;
-          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(err){}
-          cpCopy(a2.uin, {x:e.clientX||0, y:e.clientY||0});
-        }
-        var li2=cb.closest ? cb.closest('li') : null;
-        if(li2) li2.classList.remove('swiped');
-        return;
-      }
+
       var sw=document.querySelectorAll('#list li.swiped');
       for(var k=0;k<sw.length;k++){ if(!sw[k].contains(e.target)) sw[k].classList.remove('swiped'); }
     }catch(err){}
@@ -424,22 +412,35 @@ function cpToast(msg){
   }catch(e){}
 }
 function cpCopy(text, pt){
-  /* iOS Safari 专用：contenteditable + Range 选中再 copy（同步执行才被允许） */
-  var ok=false;
-  try{ ok=cpIosCopy(text); }catch(e){ ok=false; }
-  if(ok){ cpToast('已复制 ' + text); return; }
-  try{ ok=cpExecCopy(text, pt); }catch(e){ ok=false; }
-  if(ok){ cpToast('已复制 ' + text); return; }
-  try{ ok=cpSelectCopy(text, pt); }catch(e){ ok=false; }
-  if(ok){ cpToast('已复制 ' + text); return; }
+  /* iOS Safari：先试异步剪贴板 API（iOS 13.4+ 在真实手势里可用），再试同步 execCommand */
+  var tried=false;
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ cpToast('已复制 ' + text); }, function(){ cpToastSelectable(text); });
-      return;
+      tried=true;
+      navigator.clipboard.writeText(text).then(function(){ cpToast('已复制 ' + text); }, function(){
+        var ok=false;
+        try{ ok=cpIosCopy(text); }catch(e){ ok=false; }
+        if(!ok){ try{ ok=cpExecCopy(text, pt); }catch(e){ ok=false; } }
+        if(!ok){ try{ ok=cpSelectCopy(text, pt); }catch(e){ ok=false; } }
+        if(ok) cpToast('已复制 ' + text); else cpToastSelectable(text);
+      });
     }
-  }catch(e){}
-  cpToastSelectable(text);
+  }catch(e){ tried=false; }
+  if(!tried){
+    var ok2=false;
+    try{ ok2=cpIosCopy(text); }catch(e){ ok2=false; }
+    if(!ok2){ try{ ok2=cpExecCopy(text, pt); }catch(e){ ok2=false; } }
+    if(!ok2){ try{ ok2=cpSelectCopy(text, pt); }catch(e){ ok2=false; } }
+    if(ok2) cpToast('已复制 ' + text); else cpToastSelectable(text);
+  }
 }
+/* 全局：从元素上取号码复制（内联 onclick 用，iOS 最认这种"元素自身点击"） */
+window.cpCopyUin=function(u){
+  if(!u) return false;
+  try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+  cpCopy(u, null);
+  return false;
+};
 /* iOS Safari 最可靠的写法 */
 function cpIosCopy(text){
   var ok=false, ta=null;
@@ -525,15 +526,8 @@ function cpToastSelectable(text){
         cpCopy(su, {x:e.clientX||0, y:e.clientY||0});
         return;
       }
-      /* B. 点卡片上的「复制」按钮 */
-      var b=e.target.closest ? e.target.closest('.cp-btn') : null;
-      if(!b) return;
-      var u=b.getAttribute('data-uin-full')||'';
-      if(!u) return;
-      e.preventDefault(); e.stopPropagation();
-      window.__noClickUntil=Date.now()+700;
-      try{ if(navigator.vibrate) navigator.vibrate(12); }catch(err){}
-      cpCopy(u, {x:e.clientX||0, y:e.clientY||0});
+      /* B. 点卡片上的「复制」按钮 → 由元素自身的 onclick 处理（iOS 最认），这里不再重复 */
+      return;
     }catch(err){}
   }, true);
 })();
