@@ -90,7 +90,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 </div>
 
 <ul id="list"></ul>
-<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-29g</span></footer>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-10-31a</span></footer>
 <div id="ptbar"></div>
 <div id="qbToast"></div>
 
@@ -235,6 +235,31 @@ var _cb=null, _seq=0;
 function _getQBBalance(data){
   if(typeof _cb==='function'){ var f=_cb; _cb=null; f(data); }
 }
+function _getUserInfo(data){
+  if(typeof _cb==='function'){ var f=_cb; _cb=null; f(data); }
+}
+
+/* ★ 2026-10-31 新增：余额查到了但没昵称/QQ号时，补一次身份查询（cmd=1 返回 nick + provide_uin）
+   作用：导入 CK 时没填昵称的号，第一次刷新后自动补上真实昵称，不再显示"账号18" */
+function queryUserInfo(a, done){
+  var base='https://api.unipay.qq.com/v1/r/1450000186/wechat_query?cmd=1&pf=vip_m-pay_html5-html5&pfkey=pfkey&from_h5=1&from_https=1&format=jsonp__getUserInfo';
+  var url=base
+    +'&openid='+encodeURIComponent(a.openid||'')
+    +'&openkey='+encodeURIComponent(a.openkey||'')
+    +'&session_id='+encodeURIComponent(a.sessionId||'openid')
+    +'&session_type='+encodeURIComponent(a.sessionType||'kp_accesstoken')
+    +'&appid='+encodeURIComponent(a.appid||'101502376')
+    +'&_t='+(Date.now())+'_u'+(++_seq);
+  var finished=false;
+  function fin(d){ if(finished) return; finished=true; if(_cb===fin) _cb=null; done(d); }
+  _cb=fin;
+  var s=document.createElement('script');
+  s.src=url;
+  s.onerror=function(){ fin(null); };
+  document.body.appendChild(s);
+  setTimeout(function(){ fin(null); }, 8000);
+}
+
 function queryOne(a, done){
   var base='https://api.unipay.qq.com/v1/r/1450000186/wechat_query?cmd=4&pf=vip_m-pay_html5-html5&pfkey=pfkey&from_h5=1&from_https=1&format=jsonp__getQBBalance';
   var url=base
@@ -279,6 +304,20 @@ function refreshAll(){
           try{ showQbToast(a.nick||('账号'+(i+1)), a.qb, qb, a.delta); }catch(e){}   // ★ 2026-10-22 变化提示
         }
         a.qb=qb; a.qd=qd; a.err=''; okc++;
+        // ★ 2026-10-31 没有昵称/QQ号就补一次身份查询（只补一次，补到就存下来）
+        if(!a.nick || !a.uin){
+          queryUserInfo(a, function(u){
+            try{
+              if(u && u.ret===0){
+                if(u.nick) a.nick=u.nick;
+                if(u.provide_uin) a.uin=u.provide_uin;
+                a.infoAt=hms();
+              }
+            }catch(e){}
+            i++; next();
+          });
+          return;
+        }
       } else {
         a.err = (d && d.msg) ? d.msg : '查询失败';
       }
