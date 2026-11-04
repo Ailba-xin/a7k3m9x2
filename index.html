@@ -290,6 +290,7 @@ function refreshAll(){
     if(i>=ACC.length){
       BUSY=false;
       document.getElementById('ts').textContent='更新于 '+hms();
+      try { lss('qbstd_lastrefresh_v1', Date.now()); } catch (e) { }
       saveAll(); paint();
       return;
     }
@@ -776,9 +777,21 @@ function importFromHash(){
 loadAll();
 paint();
 importFromHash();
-refreshAll();
+/* 2026-11-04 用户要求：打开先用本地缓存，不要每次打开都联网读取 */
+var __lastRefresh = Number(ls('qbstd_lastrefresh_v1', 0)) || 0;
+var __staleMs = 30 * 60 * 1000;   // 超过 30 分钟才自动刷新一次
+if (Date.now() - __lastRefresh > __staleMs) {
+  setTimeout(function () { try { refreshAll(); } catch (e) { } }, 1200);
+} else {
+  var __t = document.getElementById('ts');
+  if (__t) __t.textContent = '本地数据 · ' + (Number.isFinite(__lastRefresh) && __lastRefresh > 0 ? (new Date(__lastRefresh)).toTimeString().slice(0, 5) + ' 更新' : '已缓存');
+}
 IV = getIV(); startTimer();
-document.addEventListener('visibilitychange',function(){ if(!document.hidden){ var t=document.getElementById('ts').textContent; if(t.indexOf('更新于')<0) refreshAll(); } });
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden) return;
+  var __last=Number(ls('qbstd_lastrefresh_v1',0))||0;
+  if(Date.now()-__last>10*60*1000){ try{ refreshAll(); }catch(e){} }
+});
 
 /* ---------- 设置面板（2026-10-17 按用户要求把电脑版手机端的设置搬过来） ---------- */
 var KEY_IV='qbstd_iv_v1', IV=5, _timer=null;
@@ -1002,7 +1015,6 @@ function hasDataKey() {
       }).catch(function(){ return _fetchFirst(i + 1); });
     }
     return _fetchFirst(0)
-    .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(j){
       if (!j) return;
       if (j.v === 1 && j.ct) {
