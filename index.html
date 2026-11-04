@@ -90,7 +90,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:14px}
 </div>
 
 <ul id="list"></ul>
-<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-11-04a</span></footer>
+<footer id="foot">数据存在本机，直连腾讯查询；电脑关机也能用<span id="pageVer" style="display:block;margin-top:6px;font-size:11px;color:#aab3c0">v 2026-11-04b</span></footer>
 <div id="ptbar"></div>
 <div id="qbToast"></div>
 
@@ -1027,12 +1027,30 @@ function hasDataKey() {
             patchRows();
           }
           else { SITE = {}; patchRows(); }
+            /* 2026-11-04 用户要求：data.json 没变化就不查腾讯，变了才查 */
+            try {
+              var __sig = String(j.ts || '') || ('h' + Object.keys(plain.accounts).length + '_' + JSON.stringify(plain.accounts).length);
+              var __old = ls('qbstd_datasig_v1', '');
+              if (__sig !== __old) {
+                lss('qbstd_datasig_v1', __sig);
+                setTimeout(function () { try { refreshAll(); } catch (e) { } }, 300);
+              }
+            } catch (e) { }
         });
       }
       if (j.accounts) { SITE = j.accounts; window.__siteLoaded = true;
         try{ for(var _i=0;_i<ACC.length;_i++){ var _a=ACC[_i]; var _s=SITE[_a.uin]; if(_s && typeof _s.qb==='number' && (_a.qb===undefined||_a.qb===null||_a.qb===0)){ _a.qb=_s.qb; } } }catch(e){}
         try{ paint(); }catch(e){}
         patchRows(); }
+      /* 2026-11-04 同上：明文 data.json 也是"变了才查" */
+      try {
+        var __sig2 = String(j.ts || '') || ('h' + Object.keys(j.accounts).length + '_' + JSON.stringify(j.accounts).length);
+        var __old2 = ls('qbstd_datasig_v1', '');
+        if (__sig2 !== __old2) {
+          lss('qbstd_datasig_v1', __sig2);
+          setTimeout(function () { try { refreshAll(); } catch (e) { } }, 300);
+        }
+      } catch (e) { }
     })
     .catch(function(){
       // ★ 2026-10-18 加载失败自动重试（最多 2 次），避免偶发网络波动导致数据不显示
